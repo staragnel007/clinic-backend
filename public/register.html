@@ -1,0 +1,18 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Patient registration</title>
+<style>:root{--bg:#f3f6f4;--card:#fff;--ink:#17261f;--mut:#667a70;--line:#dce5e0;--pri:#1f7a52;--pi:#fff;--bad:#b3261e}@media(prefers-color-scheme:dark){:root{--bg:#0f1713;--card:#18231d;--ink:#e6efe9;--mut:#93a89c;--line:#2a3a31;--pri:#47b583;--pi:#06210f;--bad:#f2837c;color-scheme:dark}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}main{max-width:520px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}h1{font-size:20px;margin:0 0 2px}p{margin:0 0 12px;color:var(--mut)}label{display:block;font-size:12px;color:var(--mut);margin:12px 0 3px}
+input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}textarea{min-height:56px}
+button{margin-top:16px;width:100%;background:var(--pri);color:var(--pi);border:0;padding:11px;border-radius:6px;font:inherit;font-weight:600;cursor:pointer}button:disabled{opacity:.6}.bad{color:var(--bad)}.c{display:flex;gap:8px;font-size:13px;color:var(--ink);align-items:flex-start}.c input{width:auto;margin-top:3px}.h{position:absolute;left:-9999px}</style></head><body><main><div class="card" id="f">
+<h1>{{CLINIC}}</h1><p>New patient registration</p>
+<label>Full name *</label><input id="name" autocomplete="name"><label>Age (years) *</label><input id="age" type="number" min="0" max="120" inputmode="numeric">
+<label>Sex *</label><select id="sex"><option>Male</option><option>Female</option><option>Other</option></select><label>Mobile number *</label><input id="ph" type="tel" maxlength="10" inputmode="numeric" autocomplete="tel">
+<label>Blood group</label><select id="bg"><option>Unknown</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option><option>O+</option><option>O-</option></select>
+<label>Guardian / Emergency contact</label><input id="em"><label>Address</label><textarea id="ad"></textarea><label>Known allergies</label><textarea id="al"></textarea><label>Medical history / notes</label><textarea id="hx"></textarea>
+<input class="h" id="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+<label class="c"><input type="checkbox" id="ok">I agree to share these details with the clinic for my treatment.</label>
+<p id="m" class="bad" style="margin:10px 0 0"></p><button id="go">Submit registration</button></div>
+<div class="card" id="done" style="display:none"><h1>Thank you</h1><p>Your details have been sent to {{CLINIC}}. Please tell the front desk when you arrive.</p></div></main>
+<script>const $=i=>document.getElementById(i);$("go").onclick=async()=>{const m=$("m");m.textContent="";const b={website:$("website").value,consent:$("ok").checked};["name","age","sex","ph","bg","em","ad","al","hx"].forEach(k=>b[k]=$(k).value.trim());
+if(!b.name||b.age===""||!/^[6-9]\d{9}$/.test(b.ph)||!b.consent){m.textContent="Please fill in your name, age, a valid 10-digit mobile number, and tick the consent box.";return}
+$("go").disabled=true;try{const r=await fetch("/api/public/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)}),j=await r.json();if(!r.ok)throw new Error(j.error);$("f").style.display="none";$("done").style.display="block"}catch(e){m.textContent=e.message||"Could not submit. Please try again.";$("go").disabled=false}};</script></body></html>
