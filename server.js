@@ -31,19 +31,27 @@ const REG=fs.readFileSync(path.join(__dirname,"public/register.html"),"utf8");
 const app=express();app.disable("x-powered-by");app.set("trust proxy",process.env.TRUST_PROXY==="1"?1:false);
 app.use((q,s,n)=>{s.set({"Content-Security-Policy":"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY"});if(q.path.startsWith("/api"))s.set("Cache-Control","no-store");n()});
 app.use(["/api/clinic","/api/import"],express.json({limit:"9mb"}));
+app.use("/api/public/register",express.json({limit:"400kb"}));
 app.use(express.json({limit:"200kb"}));
 app.get("/",(q,s)=>s.sendFile(path.join(__dirname,"public/app.html")));
 app.get("/qrcode.js",(q,s)=>s.sendFile(require.resolve("qrcode-generator/qrcode.js")));
 app.get("/register",A(async(q,s)=>s.type("html").send(REG.replaceAll("{{CLINIC}}",E((await clinic()).name||"Clinic")))));
 
 /* public: patient self-registration (inbox only, never writes patients directly) */
+app.get("/api/public/form",A(async(q,s)=>{const c=await clinic();s.json({name:c.name||"Clinic",form:c.regForm||DEF_FORM})}));
 app.post("/api/public/register",A(async(q,s)=>{
  if(limited("reg:"+q.ip,8,36e5))return s.status(429).json({error:"Too many submissions. Please try again later."});
  const b=q.body||{};if(b.website)return s.json({ok:true});
- const d={name:str(b.name,100),age:str(String(b.age??""),3),sex:str(b.sex,10),ph:str(b.ph,10),bg:str(b.bg,10),em:str(b.em,150),ad:str(b.ad,400),al:str(b.al,300),hx:str(b.hx,500),consent:b.consent===true};
- if(!d.name||!/^\d{1,3}$/.test(d.age)||+d.age>120||!/^[6-9]\d{9}$/.test(d.ph)||!["Male","Female","Other"].includes(d.sex)||!d.consent)return s.status(400).json({error:"Please check your name, age, sex, mobile number and consent."});
+ const form=(await clinic()).regForm||DEF_FORM,d={},cu={},bad=m=>s.status(400).json({error:m});
+ for(const sec of form.sections)for(const f of sec.f){const v=str(typeof b[f.id]==="number"?String(b[f.id]):b[f.id],f.y==="textarea"?500:150);
+  if(!v){if(f.r)return bad("Please fill in: "+f.l);continue}
+  if(f.id==="age"?!/^\d{1,3}$/.test(v)||+v>120:f.y==="number"?!/^\d{1,6}(\.\d{1,2})?$/.test(v):f.id==="ph"?!/^[6-9]\d{9}$/.test(v):f.y==="phone"?!/^\d{10}$/.test(v):f.y==="date"?!/^\d{4}-\d{2}-\d{2}$/.test(v):f.y==="select"?!(f.o||[]).includes(v):false)return bad("Please check: "+f.l);
+  if(CORE.includes(f.id))d[f.id]=v;else cu[f.id]=v}
+ if(b.consent!==true)return bad("Please tick the consent box.");
+ if(Object.keys(cu).length)d.custom=cu;
+ if(form.sig){if(typeof b.sig!=="string"||!/^data:image\/png;base64,[A-Za-z0-9+\/=]{20,150000}$/.test(b.sig))return bad("Please sign in the box.");d.sig=b.sig}
  if((await one("SELECT COUNT(*)::int c FROM regs")).c>=300)return s.status(503).json({error:"The clinic cannot accept more online registrations right now. Please register at the desk."});
- await Q("INSERT INTO regs(data) VALUES($1)",[JSON.stringify(d)]);s.json({ok:true})}));
+ d.consent=true;await Q("INSERT INTO regs(data) VALUES($1)",[JSON.stringify(d)]);s.json({ok:true})}));
 
 /* auth */
 const cookie=q=>{const m=/(?:^|;\s*)sid=([a-f0-9]{64})/.exec(q.headers.cookie||"");return m&&m[1]};
@@ -68,13 +76,19 @@ const need=r=>(q,s,n)=>q.u.role===r?n():s.status(403).json({error:"Only a doctor
 
 app.get("/api/data",A(async(q,s)=>{const d=q.u.role==="doctor";
  const [cl,patients,appts,rx,bills,regs,users,visits,doctors]=await Promise.all([clinic(),all("patients"),all("appts"),d?all("rx"):[],all("bills"),Q("SELECT id,data,created FROM regs ORDER BY id"),d?Q("SELECT id,username,name,role FROM users ORDER BY id"):{rows:[]},all("visits"),Q("SELECT id,name FROM users WHERE role='doctor' ORDER BY id")]);
- s.json({me:q.u,clinic:cl,patients,appts,rx,bills,doctors:doctors.rows,visits:d?visits:visits.map(v=>{const o={...v};CLIN.forEach(k=>delete o[k]);return o}),regs:regs.rows.map(r=>({...r.data,id:r.id,created:r.created})),users:users.rows})}));
+ s.json({me:q.u,clinic:cl,patients,appts,rx,bills,doctors:doctors.rows,visits:d?visits:visits.map(v=>{const o={...v};CLIN.forEach(k=>delete o[k]);return o}),regs:regs.rows.map(r=>{const {sig,...o}=r.data;return {...o,id:r.id,created:r.created,hasSig:!!sig}}),users:users.rows})}));
+const BGL=["Unknown","A+","A-","B+","B-","AB+","AB-","O+","O-"],CORE=["name","age","sex","ph","bg","em","ad","al","hx"],LOCK=["name","age","sex","ph"],TYPES=["text","number","select","textarea","phone","date"];
+const DEF_FORM={sig:true,sections:[{t:"Personal Information",f:[{id:"name",l:"Patient Name",y:"text",r:1,k:1},{id:"age",l:"Age",y:"number",r:1,k:1},{id:"sex",l:"Sex",y:"select",o:["Male","Female","Other"],r:1,k:1},{id:"ph",l:"Phone",y:"phone",r:1,k:1},{id:"bg",l:"Blood Group",y:"select",o:BGL},{id:"em",l:"Guardian / Emergency contact",y:"text"},{id:"ad",l:"Address",y:"textarea"}]},{t:"Medical History",f:[{id:"al",l:"Known allergies",y:"textarea"},{id:"hx",l:"Medical history / notes",y:"textarea"}]}]};
+const cleanForm=f=>{try{const seen=new Set(),secs=(Array.isArray(f&&f.sections)?f.sections:[]).slice(0,12).map(sc=>({t:str(sc&&sc.t,80)||"Section",f:(Array.isArray(sc&&sc.f)?sc.f:[]).slice(0,40).map(x=>{const id=str(x&&x.id,12);if(!(CORE.includes(id)||/^c_[a-z0-9]{3,8}$/.test(id))||seen.has(id))return null;seen.add(id);const o={id,l:str(x.l,80)||"Field",y:TYPES.includes(x.y)?x.y:"text"};
+  if(LOCK.includes(id)){o.y={name:"text",age:"number",sex:"select",ph:"phone"}[id];o.r=1;o.k=1}else if(x.r)o.r=1;
+  if(o.y==="select"){o.o=id==="sex"?["Male","Female","Other"]:lst(x.o,12,40);if(!o.o.length)o.o=["Option 1"]}return o}).filter(Boolean)}));
+ return LOCK.every(k=>seen.has(k))?{sig:!!(f&&f.sig),sections:secs}:DEF_FORM}catch(e){return DEF_FORM}};
 const SET={name:200,tag:200,doctor:200,spec:200,qual:200,time:200,reg:100,phone:30,phlabel:100,addr:400,city:100,state:100,pin:10,review:300,revmsg:600,theme:20,sigstyle:8,stamp:600,stampcol:10,stampmode:6,hdr:8,txt:8,nsize:8,fee:10,billnote:300};
 const lst=(v,n,m)=>(Array.isArray(v)?v:[]).slice(0,n).map(x=>str(x,m)).filter(Boolean);
 app.put("/api/clinic",need("doctor"),A(async(q,s)=>{const b=q.body||{},o={};for(const [k,n] of Object.entries(SET))o[k]=str(b[k],n);
  for(const k of ["logo","sig","lh"])o[k]=typeof b[k]==="string"&&b[k].length<2.8e6&&/^data:image\/(png|jpeg);base64,[A-Za-z0-9+\/=]+$/.test(b[k])?b[k]:"";
  for(const k of ["opPrefix","invPrefix"])o[k]=/^[A-Za-z0-9-]{1,8}$/.test(str(b[k],8))?str(b[k],8):"";
- o.noteBoxes=lst(b.noteBoxes,10,60);o.meds=lst(b.meds,3000,80);o.prices=(Array.isArray(b.prices)?b.prices:[]).slice(0,300).map(x=>({n:str(x&&x.n,80),r:Math.max(0,+(x&&x.r)||0)})).filter(x=>x.n);
+ o.regForm=cleanForm(b.regForm);o.noteBoxes=lst(b.noteBoxes,10,60);o.meds=lst(b.meds,3000,80);o.prices=(Array.isArray(b.prices)?b.prices:[]).slice(0,300).map(x=>({n:str(x&&x.n,80),r:Math.max(0,+(x&&x.r)||0)})).filter(x=>x.n);
  await Q("INSERT INTO kv(k,v) VALUES('clinic',$1) ON CONFLICT(k) DO UPDATE SET v=excluded.v",[JSON.stringify(o)]);await audit(q.u,"clinic");s.json(o)}));
 app.post("/api/import/patients",need("doctor"),A(async(q,s)=>{const rows=Array.isArray(q.body&&q.body.rows)?q.body.rows.slice(0,1000):[];let n=0;
  await tx(async c=>{for(const r of rows){const name=str(r&&r.name,100);if(!name)continue;const ph=str(String(r.ph??""),20).replace(/\D/g,"").slice(-10),dt=/^\d{4}-\d{2}-\d{2}$/.test(r.date||"")?r.date:today();
@@ -95,15 +109,17 @@ app.post("/api/password",A(async(q,s)=>{const b=q.body||{},u=await one("SELECT *
 /* online registration inbox */
 app.post("/api/registrations/:id/approve",A(async(q,s)=>{const id=uid(q.params.id);
  const d=id&&await tx(async c=>{const r=(await c.query("DELETE FROM regs WHERE id=$1 RETURNING data",[id])).rows[0];if(!r)return null;
-  const pid=await nextId("patients",(t,p)=>c.query(t,p)),d={...r.data,id:pid,date:today()};delete d.consent;
+  const pid=await nextId("patients",(t,p)=>c.query(t,p)),d={...r.data,id:pid,date:today()};delete d.consent;if(d.sig){await c.query("INSERT INTO docs(coll,id,data) VALUES('sigs',$1,$2)",[pid,JSON.stringify({sig:d.sig})]);d.hasSig=true;delete d.sig}
   await c.query("INSERT INTO docs(coll,id,data) VALUES('patients',$1,$2)",[pid,JSON.stringify(d)]);return d});
  if(!d)return s.status(404).json({error:"Not found"});await audit(q.u,"reg_approve",d.id);s.json(d)}));
 app.delete("/api/registrations/:id",A(async(q,s)=>{const id=uid(q.params.id);if(id)await Q("DELETE FROM regs WHERE id=$1",[id]);await audit(q.u,"reg_reject",q.params.id);s.json({ok:true})}));
 
+app.get("/api/sig/:id",A(async(q,s)=>{const r=await one("SELECT data FROM docs WHERE coll='sigs' AND id=$1",[q.params.id]);s.json({sig:r?r.data.sig:""})}));
+
 /* records: patients, appts, rx (doctor only), bills */
 const coll=(q,s,n)=>{if(!PFX[q.params.c])return s.status(404).json({error:"Unknown collection"});if(q.params.c==="rx"&&q.u.role!=="doctor")return s.status(403).json({error:"Only a doctor can do this"});
  const j=q.body&&typeof q.body==="object"&&!Array.isArray(q.body)?JSON.stringify(q.body):"";if(!j||j.length>1e5||j.includes("\\u0000"))return s.status(400).json({error:"Bad data"});n()};
-app.delete("/api/patients/:id",need("doctor"),A(async(q,s)=>{const id=q.params.id;await tx(async c=>{await c.query("DELETE FROM docs WHERE coll='patients' AND id=$1",[id]);await c.query("DELETE FROM docs WHERE coll IN ('visits','rx','bills','appts') AND data->>'pid'=$1",[id])});await audit(q.u,"patient_delete",id);s.json({ok:true})}));
+app.delete("/api/patients/:id",need("doctor"),A(async(q,s)=>{const id=q.params.id;await tx(async c=>{await c.query("DELETE FROM docs WHERE coll='patients' AND id=$1",[id]);await c.query("DELETE FROM docs WHERE coll='sigs' AND id=$1",[id]);await c.query("DELETE FROM docs WHERE coll IN ('visits','rx','bills','appts') AND data->>'pid'=$1",[id])});await audit(q.u,"patient_delete",id);s.json({ok:true})}));
 app.post("/api/:c",coll,A(async(q,s)=>{const id=await nextId(q.params.c),d={...q.body,id};if(q.params.c==="visits"&&q.u.role!=="doctor")CLIN.forEach(k=>delete d[k]);if(q.params.c==="rx"||q.params.c==="bills")d.no=id;
  await Q("INSERT INTO docs(coll,id,data) VALUES($1,$2,$3)",[q.params.c,id,JSON.stringify(d)]);await audit(q.u,"create",id);s.json(d)}));
 app.put("/api/:c/:id",coll,A(async(q,s)=>{const d={...q.body,id:q.params.id};if(q.params.c==="visits"&&q.u.role!=="doctor"){const o=await one("SELECT data FROM docs WHERE coll='visits' AND id=$1",[q.params.id]);CLIN.forEach(k=>{delete d[k];if(o&&o.data[k]!==undefined)d[k]=o.data[k]})}if(q.params.c==="rx"||q.params.c==="bills")d.no=q.params.id;

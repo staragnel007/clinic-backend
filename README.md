@@ -21,6 +21,13 @@ Tabs: Clinic Profile (letterhead details, logo, Google review link and WhatsApp 
 signature image, stamp lines, printed letterhead upload, header layout), Team, and Patient ID & Bill Fields
 (number prefixes, default fee, invoice footer note). Images are stored in the database as JPG/PNG under 2MB.
 
+## Registration form (Settings > Registration Form)
+Doctors can add, remove, rename, reorder and mark fields required, add sections, turn the patient signature box on or off,
+and add many fields at once by typing them as text (Label | type | options). Name, age, sex and phone are locked.
+The same form is used for adding patients at the desk and for the public QR page. When the signature is on, patients
+sign with a finger on the QR page and the signature prints on the Patient Report. Uploading a photo or PDF of a paper
+form for automatic extraction is not included.
+
 ## Requirements
 Node 18+ and a PostgreSQL 12+ database. Tables are created automatically on first start.
 
