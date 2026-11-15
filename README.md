@@ -15,6 +15,12 @@ patient page (registration form with visits, prescriptions, invoices, patient re
 appointments, analytics, settings and help. Patient numbers look like `OP-0001`. Saving a visit with an amount billed
 creates its invoice automatically. Only doctors can delete a patient, which also deletes all of that patient's records, so check your record-retention rules first.
 
+## Settings (doctor only)
+Cards: extra note boxes for visits, medicine list, invoice price list, CSV import of old records, backup download.
+Tabs: Clinic Profile (letterhead details, logo, Google review link and WhatsApp message, dashboard theme,
+signature image, stamp lines, printed letterhead upload, header layout), Team, and Patient ID & Bill Fields
+(number prefixes, default fee, invoice footer note). Images are stored in the database as JPG/PNG under 2MB.
+
 ## Requirements
 Node 18+ and a PostgreSQL 12+ database. Tables are created automatically on first start.
 
