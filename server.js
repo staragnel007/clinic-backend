@@ -18,7 +18,7 @@ let DUMMY;
 const audit=(u,act,ref)=>Q("INSERT INTO audit(uid,act,ref) VALUES($1,$2,$3)",[u?u.id:null,act,ref||""]).catch(e=>console.error("audit failed:",e.message));
 const hits=new Map(),limited=(k,max,ms)=>{const t=Date.now(),a=(hits.get(k)||[]).filter(x=>t-x<ms);a.push(t);hits.set(k,a);return a.length>max};
 setInterval(()=>{const t=Date.now();for(const [k,a] of hits)if(!a.some(x=>t-x<36e5))hits.delete(k);Q("DELETE FROM sessions WHERE exp<$1",[t]).catch(()=>{})},6e5).unref();
-const PFX={patients:"P-",appts:"A-",rx:"RX-",bills:"INV-"};
+const PFX={patients:"OP-",appts:"A-",rx:"RX-",bills:"INV-",visits:"V-"},CLIN=["dx","rx","notes"];
 const nextId=async(c,x=Q)=>PFX[c]+String((await x("INSERT INTO kv(k,v) VALUES($1,'1') ON CONFLICT(k) DO UPDATE SET v=(kv.v::int+1)::text RETURNING v",["seq:"+c])).rows[0].v).padStart(4,"0");
 const all=async c=>(await Q("SELECT data FROM docs WHERE coll=$1 ORDER BY n",[c])).rows.map(r=>r.data);
 const clinic=async()=>{const r=await one("SELECT v FROM kv WHERE k='clinic'");return r?JSON.parse(r.v):{}};
@@ -65,8 +65,8 @@ app.use("/api",A(async(q,s,n)=>{q.u=await who(q);q.u?n():s.status(401).json({err
 const need=r=>(q,s,n)=>q.u.role===r?n():s.status(403).json({error:"Only a doctor can do this"});
 
 app.get("/api/data",A(async(q,s)=>{const d=q.u.role==="doctor";
- const [cl,patients,appts,rx,bills,regs,users]=await Promise.all([clinic(),all("patients"),all("appts"),d?all("rx"):[],all("bills"),Q("SELECT id,data,created FROM regs ORDER BY id"),d?Q("SELECT id,username,name,role FROM users ORDER BY id"):{rows:[]}]);
- s.json({me:q.u,clinic:cl,patients,appts,rx,bills,regs:regs.rows.map(r=>({...r.data,id:r.id,created:r.created})),users:users.rows})}));
+ const [cl,patients,appts,rx,bills,regs,users,visits,doctors]=await Promise.all([clinic(),all("patients"),all("appts"),d?all("rx"):[],all("bills"),Q("SELECT id,data,created FROM regs ORDER BY id"),d?Q("SELECT id,username,name,role FROM users ORDER BY id"):{rows:[]},all("visits"),Q("SELECT id,name FROM users WHERE role='doctor' ORDER BY id")]);
+ s.json({me:q.u,clinic:cl,patients,appts,rx,bills,doctors:doctors.rows,visits:d?visits:visits.map(v=>{const o={...v};CLIN.forEach(k=>delete o[k]);return o}),regs:regs.rows.map(r=>({...r.data,id:r.id,created:r.created})),users:users.rows})}));
 app.put("/api/clinic",need("doctor"),A(async(q,s)=>{const o={};for(const k of ["name","doctor","qual","reg","phone","time","addr"])o[k]=str((q.body||{})[k],200);
  await Q("INSERT INTO kv(k,v) VALUES('clinic',$1) ON CONFLICT(k) DO UPDATE SET v=excluded.v",[JSON.stringify(o)]);await audit(q.u,"clinic");s.json(o)}));
 app.post("/api/users",need("doctor"),A(async(q,s)=>{const b=q.body||{},un=str(b.username,30).toLowerCase(),nm=str(b.name,80),pw=typeof b.password==="string"?b.password:"";
@@ -91,9 +91,10 @@ app.delete("/api/registrations/:id",A(async(q,s)=>{const id=uid(q.params.id);if(
 /* records: patients, appts, rx (doctor only), bills */
 const coll=(q,s,n)=>{if(!PFX[q.params.c])return s.status(404).json({error:"Unknown collection"});if(q.params.c==="rx"&&q.u.role!=="doctor")return s.status(403).json({error:"Only a doctor can do this"});
  const j=q.body&&typeof q.body==="object"&&!Array.isArray(q.body)?JSON.stringify(q.body):"";if(!j||j.length>1e5||j.includes("\\u0000"))return s.status(400).json({error:"Bad data"});n()};
-app.post("/api/:c",coll,A(async(q,s)=>{const id=await nextId(q.params.c),d={...q.body,id};if(q.params.c==="rx"||q.params.c==="bills")d.no=id;
+app.delete("/api/patients/:id",need("doctor"),A(async(q,s)=>{const id=q.params.id;await tx(async c=>{await c.query("DELETE FROM docs WHERE coll='patients' AND id=$1",[id]);await c.query("DELETE FROM docs WHERE coll IN ('visits','rx','bills','appts') AND data->>'pid'=$1",[id])});await audit(q.u,"patient_delete",id);s.json({ok:true})}));
+app.post("/api/:c",coll,A(async(q,s)=>{const id=await nextId(q.params.c),d={...q.body,id};if(q.params.c==="visits"&&q.u.role!=="doctor")CLIN.forEach(k=>delete d[k]);if(q.params.c==="rx"||q.params.c==="bills")d.no=id;
  await Q("INSERT INTO docs(coll,id,data) VALUES($1,$2,$3)",[q.params.c,id,JSON.stringify(d)]);await audit(q.u,"create",id);s.json(d)}));
-app.put("/api/:c/:id",coll,A(async(q,s)=>{const d={...q.body,id:q.params.id};if(q.params.c==="rx"||q.params.c==="bills")d.no=q.params.id;
+app.put("/api/:c/:id",coll,A(async(q,s)=>{const d={...q.body,id:q.params.id};if(q.params.c==="visits"&&q.u.role!=="doctor"){const o=await one("SELECT data FROM docs WHERE coll='visits' AND id=$1",[q.params.id]);CLIN.forEach(k=>{delete d[k];if(o&&o.data[k]!==undefined)d[k]=o.data[k]})}if(q.params.c==="rx"||q.params.c==="bills")d.no=q.params.id;
  const r=await Q("UPDATE docs SET data=$1,upd=now() WHERE coll=$2 AND id=$3",[JSON.stringify(d),q.params.c,q.params.id]);
  if(!r.rowCount)return s.status(404).json({error:"Not found"});await audit(q.u,"update",q.params.id);s.json(d)}));
 app.use((e,q,s,n)=>{if(e.type==="entity.parse.failed"||e.type==="entity.too.large")return s.status(400).json({error:"Bad request"});console.error(e);s.status(500).json({error:"Server error"})});
