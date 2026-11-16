@@ -21,11 +21,11 @@ function sign(){const c=$("sg"),x=c.getContext("2d");x.lineWidth=2.5;x.lineCap="
  c.onpointerdown=e=>{d=true;c.setPointerCapture(e.pointerId);const[a,b]=pt(e);x.beginPath();x.moveTo(a,b);x.lineTo(a+.1,b+.1);x.stroke()};
  c.onpointermove=e=>{if(!d)return;const[a,b]=pt(e);x.lineTo(a,b);x.stroke();signed=true};c.onpointerup=c.onpointercancel=()=>{d=false;signed=true};
  $("sgc").onclick=()=>{x.clearRect(0,0,c.width,c.height);signed=false}}
-fetch("/api/public/form").then(r=>r.json()).then(j=>{FORM=j.form;$("fm").className="";$("fm").innerHTML=FORM.sections.map(s=>`<h2>${esc(s.t)}</h2>`+s.f.map(fld).join("")).join("")+(FORM.sig?`<h2>Signature *</h2><canvas id="sg" width="460" height="160"></canvas><button type="button" class="lnk" id="sgc">Clear signature</button>`:"");if(FORM.sig)sign();$("go").disabled=false}).catch(()=>{$("fm").textContent="Could not load the form. Please refresh the page."});
+fetch("/api/public/form?c={{SLUG}}").then(r=>r.json()).then(j=>{FORM=j.form;$("fm").className="";$("fm").innerHTML=FORM.sections.map(s=>`<h2>${esc(s.t)}</h2>`+s.f.map(fld).join("")).join("")+(FORM.sig?`<h2>Signature *</h2><canvas id="sg" width="460" height="160"></canvas><button type="button" class="lnk" id="sgc">Clear signature</button>`:"");if(FORM.sig)sign();$("go").disabled=false}).catch(()=>{$("fm").textContent="Could not load the form. Please refresh the page."});
 $("go").onclick=async()=>{const m=$("m");m.textContent="";const b={website:$("website").value,consent:$("ok").checked};
  for(const s of FORM.sections)for(const f of s.f){const v=$("f_"+f.id).value.trim();b[f.id]=v;if(f.r&&!v){m.textContent="Please fill in: "+f.l;return}}
  if(!/^[6-9]\d{9}$/.test(b.ph||"")){m.textContent="Please enter a valid 10-digit mobile number.";return}
  if(FORM.sig){if(!signed){m.textContent="Please sign in the box.";return}b.sig=$("sg").toDataURL("image/png")}
  if(!b.consent){m.textContent="Please tick the consent box.";return}
- $("go").disabled=true;try{const r=await fetch("/api/public/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)}),j=await r.json();if(!r.ok)throw new Error(j.error);$("f").style.display="none";$("done").style.display="block"}catch(e){m.textContent=e.message||"Could not submit. Please try again.";$("go").disabled=false}};
+ $("go").disabled=true;try{const r=await fetch("/api/public/register?c={{SLUG}}",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)}),j=await r.json();if(!r.ok)throw new Error(j.error);$("f").style.display="none";$("done").style.display="block"}catch(e){m.textContent=e.message||"Could not submit. Please try again.";$("go").disabled=false}};
 </script></body></html>
