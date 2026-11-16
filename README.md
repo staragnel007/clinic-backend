@@ -1,7 +1,8 @@
 # OPD Desk (server edition, PostgreSQL)
 
-Single-clinic patient registration, appointments, prescriptions and billing, with doctor/staff login
-and a QR code patients scan to register themselves.
+Multi-clinic patient registration, appointments, prescriptions and billing. Doctors sign up with Google or
+email and password; each sign-up gets its own clinic whose records no other clinic can see. Patients
+scan a per-clinic QR code to register themselves.
 
 ## Who can see what
 - **Public (no login):** only `/register`, the patient registration form. It can only add a request to the
@@ -34,7 +35,7 @@ Node 18+ and a PostgreSQL 12+ database. Tables are created automatically on firs
 ## Run locally
     npm install
     DATABASE_URL=postgres://user:password@localhost:5432/opd INSECURE_COOKIES=1 npm start
-Open http://localhost:3000, create the first doctor account, then add clinic details under Settings.
+Open http://localhost:3000/signup, create a doctor account, then add clinic details under Settings.
 (`INSECURE_COOKIES=1` is for local http only.)
 
 ## Deploy
@@ -46,15 +47,20 @@ and put HTTPS in front (Caddy or nginx, proxying to port 3000).
 (Dockerfile included) and set `DATABASE_URL` to the database's connection string. If the provider requires SSL
 and the connection fails, also set `PGSSL=1`.
 
-The site must be served over HTTPS. Then open `https://your-domain/`, create the doctor account, and print
-the QR from Settings > Patient registration QR (it points to `https://your-domain/register`). Finalise the
-domain before printing: the QR encodes the address you were using.
+The site must be served over HTTPS. Then open `https://your-domain/signup`, create the doctor account, and print
+the QR from the dashboard (Registration QR Code). Each clinic gets its own link, `https://your-domain/register/<code>`;
+the clinic that existed before multi-clinic support keeps the plain `https://your-domain/register`, so QR codes
+already printed keep working. Finalise the domain before printing: the QR encodes the address you were using.
 
 ## Environment variables
 - `DATABASE_URL`  PostgreSQL connection string (required)
 - `PGSSL=1`  use SSL to the database (add `PGSSL_STRICT=1` to also verify the certificate)
 - `TRUST_PROXY=1`  when behind a proxy/load balancer so rate limits see real IPs (Docker sets it)
 - `INSECURE_COOKIES=1`  local http testing only; never in production
+- `APP_URL`  public address of the app, e.g. `https://clinic-backend-production-cb12bfed.up.railway.app` (used in Google sign-in and reset links)
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`  turn on "Continue with Google" (see below)
+- `RESEND_API_KEY`, `MAIL_FROM`  turn on "Forgot password?" emails, e.g. `MAIL_FROM="Clinic Desk <noreply@yourdomain.com>"`
+- `APP_NAME`  name used in emails, default `Clinic Desk`
 - `CLINIC_TZ`  default `Asia/Kolkata`
 - `PORT`  default 3000
 
@@ -64,14 +70,37 @@ Use PostgreSQL's own tools, daily, and test a restore once:
     pg_restore -d "$DATABASE_URL" --clean clinic-YYYY-MM-DD.dump
 Managed databases usually offer automatic backups: turn them on. Backups contain patient records, so keep them private.
 
-## Forgot a password
-On the server: `DATABASE_URL=... node reset-password.js <username> <new-password>`
+## Sign-up, sign-in and password reset
+- **Sign up** at `/signup` with Google or with name, clinic name, email and password. Each sign-up creates a new,
+  separate clinic and its first doctor account (with the usual free trial).
+- **Sign in** at `/` with Google, or with email (or the old username) and password.
+- **Forgot password?** sends a single-use reset link to the account's email. The link expires after 1 hour; using it
+  signs out every other session. The reply is the same whether or not the email has an account.
+- Staff added under Settings > Team can be given an email so they can reset their own password too.
+- Accounts without an email (created before this change) can still be reset on the server:
+  `DATABASE_URL=... node reset-password.js <username> <new-password>`
+
+### Setting up Google sign-in
+1. In Google Cloud Console > APIs & Services, configure the OAuth consent screen (External, app name, support email).
+2. Credentials > Create credentials > OAuth client ID > Web application.
+3. Authorised redirect URI: `https://<your-domain>/auth/google/callback` (exactly; must match `APP_URL`).
+4. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Publish the consent screen so anyone can sign in.
+
+### Setting up reset emails (Resend)
+1. Create an account at resend.com, add and verify your sending domain (DNS records).
+2. Create an API key and set `RESEND_API_KEY`, and `MAIL_FROM` to an address on that domain.
+   (Without a verified domain Resend only delivers to your own address, which is enough for testing.)
+
+### Upgrading an existing database
+On first start the server moves everything that already exists (accounts, patients, settings, numbering) into
+clinic 1. Take a `pg_dump` backup before deploying this version.
 
 ## Security notes
 Passwords are hashed (scrypt); sessions are HttpOnly SameSite=Strict cookies that expire after 12 hours;
 login is rate limited; the public form is rate limited, size limited and capped at 300 pending requests.
-Rate limits are kept in memory, so run a single app instance. Records are not encrypted inside the database:
+Rate limits are kept in memory, so run a single app instance. Behind a proxy (Railway, Render, Docker) set
+`TRUST_PROXY=1`, otherwise every visitor shares one rate limit. Records are not encrypted inside the database:
 restrict access to the database and its backups. Patient data is personal health data, so keep the server
 patched and review India's DPDP Act obligations (consent, retention, breach reporting) with your advisor.
-Not included: SMS/email, password reset by email, two-factor login, an audit viewer (actions are logged in
+Not included: SMS, two-factor login, an audit viewer (actions are logged in
 the `audit` table).
