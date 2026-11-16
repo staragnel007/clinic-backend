@@ -242,7 +242,7 @@ const help=()=>$("#app").innerHTML=`<div class="crumb"><a href="#/">⌂ Dashboar
 
 /* actions */
 async function enter(){const d=await api("GET","/api/data");S={...S,...d};ME=d.me;$("#lk").classList.remove("on");document.body.classList.remove("lk");idle();render()}
-async function out(){try{await api("POST","/api/logout")}catch(e){}ME=null;location.hash="";location.reload()}
+async function out(){try{await api("POST","/api/logout")}catch(e){}ME=null;location.replace("https://staragnel007.github.io/my-clinic-desk-website/")}
 document.addEventListener("click",async e=>{const op=document.querySelector("details.dd[open]");if(op&&!op.contains(e.target))op.open=false;
  const t=e.target.closest("[data-a]");if(!t)return;const a=t.dataset.a,id=t.dataset.id;
  if(a==="close")closeM();else if(a==="print")print();else if(a==="out")out();
