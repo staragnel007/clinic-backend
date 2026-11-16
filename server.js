@@ -161,23 +161,3 @@ app.use((e,q,s,n)=>{if(e.type==="entity.parse.failed"||e.type==="entity.too.larg
  const srv=app.listen(PORT,()=>console.log("OPD Desk running on port "+PORT));
  const stop=()=>srv.close(()=>pool.end().then(()=>process.exit(0)));process.on("SIGTERM",stop);process.on("SIGINT",stop)})()
  .catch(e=>{console.error("Startup failed:",e.message);process.exit(1)});
-// Admin Dashboard Route
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-});
-
-// Admin API to fetch users/clinics
-app.get('/api/admin/clinics', async (req, res) => {
-  const adminPassword = req.headers['x-admin-password'] || req.query.password;
-  if (!adminPassword || adminPassword !== process.env.ADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid Admin Password' });
-  }
-
-  try {
-    const result = await pool.query('SELECT * FROM users ORDER BY created DESC');
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
