@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Founder Admin</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--tx:#1b2430;--mut:#66758a;--bd:#e0e5ec;--pri:#0f766e;--ok:#15803d;--warn:#b45309;--bad:#b91c1c}
+@media(prefers-color-scheme:dark){:root{--bg:#10151b;--card:#192029;--tx:#e6ebf2;--mut:#93a1b5;--bd:#2a3441;--pri:#2dd4bf;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171}}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:var(--card);border-bottom:1px solid var(--bd)}
+h1{font-size:17px;margin:0}main{max-width:1100px;margin:0 auto;padding:20px 16px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:18px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:16px}
+.card b{display:block;font-size:28px;margin-top:4px}.card span{color:var(--mut);font-size:13px}
+input,button{font:inherit}input{padding:9px 11px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)}
+button{padding:7px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx);cursor:pointer}
+button.p{background:var(--pri);border-color:var(--pri);color:#fff}button:disabled{opacity:.5;cursor:default}
+.bar{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}.bar input{flex:1;min-width:200px}
+.tw{background:var(--card);border:1px solid var(--bd);border-radius:10px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--bd);white-space:nowrap}
+th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}tr:last-child td{border-bottom:0}
+.tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600;border:1px solid currentColor}
+.trial{color:var(--warn)}.paid{color:var(--ok)}.expired{color:var(--bad)}
+.act{display:flex;gap:6px}.mut{color:var(--mut)}#msg{margin:0 0 10px;color:var(--bad);min-height:1em}
+#login{max-width:340px;margin:12vh auto;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:24px}
+#login input{width:100%;margin:12px 0}[hidden]{display:none!important}
+</style></head><body>
+<div id="login" hidden>
+ <h1>Founder Admin</h1><p class="mut" style="margin:6px 0 0">Enter the admin password.</p>
+ <form id="lf"><input id="pw" type="password" autocomplete="current-password" placeholder="Admin password" required>
+ <button class="p" style="width:100%">Sign in</button></form><p id="lerr" style="color:var(--bad);margin:10px 0 0"></p>
+</div>
+<div id="app" hidden>
+ <header><h1>Founder Admin <span class="mut" id="cn" style="font-weight:400"></span></h1><button id="lo">Sign out</button></header>
+ <main>
+  <div class="cards">
+   <div class="card"><span>Total Clinics</span><b id="s_total">0</b></div>
+   <div class="card"><span>Active Free Trials</span><b id="s_trial">0</b></div>
+   <div class="card"><span>Paid Clinics</span><b id="s_paid">0</b></div>
+   <div class="card"><span>Expired Trials</span><b id="s_expired">0</b></div>
+  </div>
+  <p id="msg"></p>
+  <div class="bar"><input id="q" type="search" placeholder="Search by name, username or status…"><button id="rf">Refresh</button></div>
+  <div class="tw"><table><thead><tr><th>#</th><th>Doctor</th><th>Username</th><th>Signed up</th><th>Status</th><th>Trial ends</th><th>Days left</th><th>Actions</th></tr></thead><tbody id="tb"></tbody></table></div>
+  <p class="mut" style="font-size:12px">Each row is a doctor account. Extending adds 7 days to the current trial end (or to today if it already ended).</p>
+ </main>
+</div>
+<script>
+var H={"Content-Type":"application/json","X-Requested-With":"opd"},rows=[];
+function $(i){return document.getElementById(i)}
+async function api(m,u,b){var r=await fetch(u,{method:m,headers:H,credentials:"same-origin",body:b?JSON.stringify(b):undefined}),j={};try{j=await r.json()}catch(e){}
+ if(r.status===401&&u.indexOf("/login")<0){show(false)}if(!r.ok)throw new Error(j.error||"Request failed");return j}
+function show(on){$("login").hidden=on;$("app").hidden=!on}
+function fd(v){return v?new Date(v).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"—"}
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+function draw(){var f=$("q").value.trim().toLowerCase(),tb=$("tb");tb.textContent="";
+ rows.filter(function(r){return!f||(r.name+" "+r.username+" "+r.status).toLowerCase().indexOf(f)>=0}).forEach(function(r){
+  var tr=el("tr");[r.id,r.name,r.username,fd(r.created)].forEach(function(x,i){tr.appendChild(el("td",i>1?"mut":"",x))});
+  var st=el("td");st.appendChild(el("span","tag "+r.status,r.status==="trial"?"Free trial":r.status==="paid"?"Paid":"Expired"));tr.appendChild(st);
+  tr.appendChild(el("td","",r.status==="paid"?"—":fd(r.trial_end)));
+  var dl=r.status==="paid"?"—":r.status==="expired"?"Expired":r.days+" day"+(r.days===1?"":"s");tr.appendChild(el("td","",dl));
+  var a=el("td"),w=el("div","act");
+  var b1=el("button","","+7 days");b1.disabled=r.status==="paid";b1.onclick=function(){act(r,"extend",b1)};w.appendChild(b1);
+  var b2=el("button",r.status==="paid"?"":"p",r.status==="paid"?"Unmark paid":"Mark paid");b2.onclick=function(){act(r,"paid",b2,{paid:r.status!=="paid"})};w.appendChild(b2);
+  a.appendChild(w);tr.appendChild(a);tb.appendChild(tr)});
+ if(!tb.children.length){var t=el("tr"),d=el("td","mut","No clinics found.");d.colSpan=8;t.appendChild(d);tb.appendChild(t)}}
+async function act(r,k,btn,body){$("msg").textContent="";
+ if(k==="paid"&&body.paid&&!confirm("Mark "+r.name+" as Paid?"))return;
+ btn.disabled=true;try{var u=await api("POST","/api/admin/clinics/"+r.id+"/"+k,body||{});Object.assign(r,u);cards();draw()}catch(e){$("msg").textContent=e.message;btn.disabled=false}}
+function cards(){var c={total:rows.length,trial:0,paid:0,expired:0};rows.forEach(function(r){c[r.status]++});for(var k in c)$("s_"+k).textContent=c[k]}
+async function load(){$("msg").textContent="";try{var d=await api("GET","/api/admin/clinics");rows=d.clinics;$("cn").textContent=d.clinicName?"· "+d.clinicName:"";show(true);cards();draw()}catch(e){$("msg").textContent=e.message}}
+$("lf").onsubmit=async function(e){e.preventDefault();$("lerr").textContent="";try{await api("POST","/api/admin/login",{password:$("pw").value});$("pw").value="";load()}catch(x){$("lerr").textContent=x.message}};
+$("lo").onclick=async function(){try{await api("POST","/api/admin/logout")}catch(e){}rows=[];show(false)};
+$("q").oninput=draw;$("rf").onclick=load;
+api("GET","/api/admin/status").then(function(j){j.ok?load():show(false)}).catch(function(){show(false)});
+</script></body></html>

@@ -10,7 +10,11 @@ CREATE TABLE IF NOT EXISTS sessions(th TEXT PRIMARY KEY,uid INTEGER NOT NULL REF
 CREATE TABLE IF NOT EXISTS docs(coll TEXT NOT NULL,id TEXT NOT NULL,n BIGSERIAL,data JSONB NOT NULL,upd TIMESTAMPTZ NOT NULL DEFAULT now(),PRIMARY KEY(coll,id));
 CREATE TABLE IF NOT EXISTS regs(id SERIAL PRIMARY KEY,data JSONB NOT NULL,created TIMESTAMPTZ NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY,v TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS audit(id BIGSERIAL PRIMARY KEY,uid INTEGER,act TEXT,ref TEXT,at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+CREATE TABLE IF NOT EXISTS audit(id BIGSERIAL PRIMARY KEY,uid INTEGER,act TEXT,ref TEXT,at TIMESTAMPTZ NOT NULL DEFAULT now());
+ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_end TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'trial';
+UPDATE users SET trial_end=now()+interval '14 days' WHERE trial_end IS NULL AND role='doctor'`);
+const TRIAL_DAYS=Math.max(1,Math.min(365,+process.env.TRIAL_DAYS||14));
 const today=()=>new Date().toLocaleDateString("en-CA",{timeZone:TZ}),sha=s=>crypto.createHash("sha256").update(s).digest("hex");
 const hashPw=async p=>{const s=crypto.randomBytes(16);return s.toString("hex")+":"+(await scrypt(p,s,64)).toString("hex")};
 const okPw=async(p,h)=>{const [s,x]=h.split(":"),y=await scrypt(p,Buffer.from(s,"hex"),64);return crypto.timingSafeEqual(y,Buffer.from(x,"hex"))};
@@ -63,7 +67,7 @@ app.use("/api",(q,s,n)=>{if(q.method!=="GET"&&q.headers["x-requested-with"]!=="o
 app.post("/api/setup",A(async(q,s)=>{
  const b=q.body||{},un=str(b.username,30).toLowerCase(),nm=str(b.name,80),pw=typeof b.password==="string"?b.password:"";
  if(!/^[a-z0-9._-]{3,30}$/.test(un)||!nm||pw.length<8)return s.status(400).json({error:"Use a username (3+ letters/digits), your name and a password of 8+ characters."});
- const h=await hashPw(pw),id=await tx(async c=>{await c.query("SELECT pg_advisory_xact_lock(7001)");if((await c.query("SELECT COUNT(*)::int c FROM users")).rows[0].c)return null;return(await c.query("INSERT INTO users(username,name,role,hash) VALUES($1,$2,'doctor',$3) RETURNING id",[un,nm,h])).rows[0].id});
+ const h=await hashPw(pw),id=await tx(async c=>{await c.query("SELECT pg_advisory_xact_lock(7001)");if((await c.query("SELECT COUNT(*)::int c FROM users")).rows[0].c)return null;return(await c.query("INSERT INTO users(username,name,role,hash,trial_end) VALUES($1,$2,'doctor',$3,now()+make_interval(days=>$4)) RETURNING id",[un,nm,h,TRIAL_DAYS])).rows[0].id});
  if(!id)return s.status(403).json({error:"Already set up"});await login(s,id);await audit({id},"setup");s.json({ok:true})}));
 app.post("/api/login",A(async(q,s)=>{const b=q.body||{},un=str(b.username,30).toLowerCase();
  if(limited("ip:"+q.ip,20,9e5)||limited("u:"+un,10,9e5))return s.status(429).json({error:"Too many attempts. Try again in 15 minutes."});
@@ -71,6 +75,32 @@ app.post("/api/login",A(async(q,s)=>{const b=q.body||{},un=str(b.username,30).to
  if(!ok){await audit(null,"login_failed",un);return s.status(401).json({error:"Wrong username or password"})}
  await login(s,u.id);await audit(u,"login");s.json({ok:true})}));
 app.post("/api/logout",A(async(q,s)=>{const t=cookie(q);if(t)await Q("DELETE FROM sessions WHERE th=$1",[sha(t)]);s.append("Set-Cookie","sid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0");s.json({ok:true})}));
+
+/* founder / super admin (separate from doctor logins; needs ADMIN_PASSWORD) */
+const ADMIN_PW=process.env.ADMIN_PASSWORD||"",AKEY=crypto.createHash("sha256").update("opd-admin:"+ADMIN_PW).digest();
+const sameStr=(a,b)=>crypto.timingSafeEqual(crypto.createHash("sha256").update(String(a)).digest(),crypto.createHash("sha256").update(String(b)).digest());
+const admTok=()=>{const e=Date.now()+288e5;return e+"."+crypto.createHmac("sha256",AKEY).update(String(e)).digest("hex")};
+const admOk=q=>{const m=/(?:^|;\s*)adm=(\d{10,14})\.([a-f0-9]{64})/.exec(q.headers.cookie||"");if(!ADMIN_PW||!m||+m[1]<Date.now())return false;return sameStr(crypto.createHmac("sha256",AKEY).update(m[1]).digest("hex"),m[2])};
+if(!ADMIN_PW)console.warn("ADMIN_PASSWORD is not set: the /admin dashboard is disabled.");
+else if(ADMIN_PW.length<12)console.warn("ADMIN_PASSWORD is short; use 12+ characters.");
+app.get("/admin",(q,s)=>{if(!ADMIN_PW)return s.status(404).send("Not found");s.set("Cache-Control","no-store").sendFile(path.join(__dirname,"public/admin.html"))});
+app.post("/api/admin/login",A(async(q,s)=>{if(!ADMIN_PW)return s.status(404).json({error:"Not found"});
+ if(limited("adm:"+q.ip,8,9e5))return s.status(429).json({error:"Too many attempts. Try again in 15 minutes."});
+ const p=q.body&&q.body.password;if(typeof p!=="string"||!sameStr(p,ADMIN_PW)){await audit(null,"admin_login_failed",q.ip);return s.status(401).json({error:"Wrong password"})}
+ s.append("Set-Cookie",`adm=${admTok()}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${SECURE?"; Secure":""}`);await audit(null,"admin_login");s.json({ok:true})}));
+app.post("/api/admin/logout",(q,s)=>{s.append("Set-Cookie","adm=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0");s.json({ok:true})});
+const adm=(q,s,n)=>admOk(q)?n():s.status(401).json({error:"Admin sign-in required"});
+const CL="SELECT id,username,name,created,plan,trial_end,CASE WHEN plan='paid' THEN 'paid' WHEN trial_end>now() THEN 'trial' ELSE 'expired' END status,CASE WHEN plan='paid' OR trial_end IS NULL THEN NULL ELSE CEIL(EXTRACT(EPOCH FROM (trial_end-now()))/86400)::int END days FROM users WHERE role='doctor'";
+app.get("/api/admin/status",(q,s)=>s.json({ok:admOk(q)}));
+app.get("/api/admin/clinics",adm,A(async(q,s)=>{const rows=(await Q(CL+" ORDER BY id")).rows,c=await clinic();
+ s.json({clinicName:c.name||"",summary:{total:rows.length,trial:rows.filter(r=>r.status==="trial").length,paid:rows.filter(r=>r.status==="paid").length,expired:rows.filter(r=>r.status==="expired").length},clinics:rows})}));
+app.post("/api/admin/clinics/:id/extend",adm,A(async(q,s)=>{const id=uid(q.params.id);if(!id)return s.status(404).json({error:"Not found"});
+ const r=await one("UPDATE users SET trial_end=GREATEST(COALESCE(trial_end,now()),now())+interval '7 days' WHERE id=$1 AND role='doctor' AND plan<>'paid' RETURNING id",[id]);
+ if(!r)return s.status(409).json({error:"Clinic not found, or it is already paid"});await audit(null,"admin_extend",String(id));s.json(await one(CL+" AND id=$1",[id]))}));
+app.post("/api/admin/clinics/:id/paid",adm,A(async(q,s)=>{const id=uid(q.params.id);if(!id)return s.status(404).json({error:"Not found"});
+ const paid=!(q.body&&q.body.paid===false);
+ const r=await one("UPDATE users SET plan=$2 WHERE id=$1 AND role='doctor' RETURNING id",[id,paid?"paid":"trial"]);
+ if(!r)return s.status(404).json({error:"Not found"});await audit(null,paid?"admin_paid":"admin_unpaid",String(id));s.json(await one(CL+" AND id=$1",[id]))}));
 app.use("/api",A(async(q,s,n)=>{q.u=await who(q);q.u?n():s.status(401).json({error:"Please sign in"})}));
 const need=r=>(q,s,n)=>q.u.role===r?n():s.status(403).json({error:"Only a doctor can do this"});
 
@@ -97,7 +127,7 @@ app.post("/api/import/patients",need("doctor"),A(async(q,s)=>{const rows=Array.i
  await audit(q.u,"import",String(n));s.json({added:n,skipped:rows.length-n})}));
 app.post("/api/users",need("doctor"),A(async(q,s)=>{const b=q.body||{},un=str(b.username,30).toLowerCase(),nm=str(b.name,80),pw=typeof b.password==="string"?b.password:"";
  if(!/^[a-z0-9._-]{3,30}$/.test(un)||!nm||pw.length<8||!["doctor","staff"].includes(b.role))return s.status(400).json({error:"Enter username, name, role and a password of 8+ characters."});
- try{const r=await one("INSERT INTO users(username,name,role,hash) VALUES($1,$2,$3,$4) RETURNING id",[un,nm,b.role,await hashPw(pw)]);await audit(q.u,"user_add",un);s.json({id:r.id,username:un,name:nm,role:b.role})}
+ try{const r=await one("INSERT INTO users(username,name,role,hash,trial_end) VALUES($1,$2,$3,$4,CASE WHEN $3='doctor' THEN now()+make_interval(days=>$5) END) RETURNING id",[un,nm,b.role,await hashPw(pw),TRIAL_DAYS]);await audit(q.u,"user_add",un);s.json({id:r.id,username:un,name:nm,role:b.role})}
  catch(e){if(e.code==="23505")return s.status(409).json({error:"That username is taken"});throw e}}));
 app.delete("/api/users/:id",need("doctor"),A(async(q,s)=>{const id=uid(q.params.id);if(id===q.u.id)return s.status(400).json({error:"You cannot remove yourself"});
  if(id)await Q("DELETE FROM users WHERE id=$1",[id]);await audit(q.u,"user_del",q.params.id);s.json({ok:true})}));
