@@ -277,7 +277,7 @@ const profileRoute=finish=>A(async(q,s)=>{const {o,e}=checkProfile(q.body||{});
  await Q(`UPDATE clinics SET ${PROF.map(([,col],i)=>col+"=$"+(i+2)).join(",")},profile_updated=now()${finish?",is_setup_complete=true,setup_completed_at=COALESCE(setup_completed_at,now())":""} WHERE id=$1`,[q.u.cid,...PROF.map(([f])=>o[f]===""?null:o[f])]);
  await audit(q.u,finish?"setup_complete":"profile");s.json({clinic:await clinic(q.u.cid),setup:finish||q.u.setup})});
 /* doctor's note boxes for each visit, in order: {id, l}. dx, rx and notes are built in; others are stored in visit.extra by id */
-const cleanBoxes=v=>{const seen=new Set();return v.slice(0,15).map(x=>{const id=str(x&&x.id,60),l=str(x&&x.l,60);if(!id||!l||seen.has(id))return null;seen.add(id);return {id,l}}).filter(Boolean)};
+const cleanBoxes=v=>{const seen=new Set();return v.slice(0,15).map(x=>{const id=str(x&&x.id,60),l=str(x&&x.l,60),lg=str(x&&x.legacy,60);if(!id||!l||seen.has(id))return null;seen.add(id);return lg?{id,l,legacy:lg}:{id,l}}).filter(Boolean)};
 const lst=(v,n,m)=>(Array.isArray(v)?v:[]).slice(0,n).map(x=>str(x,m)).filter(Boolean);
 app.put("/api/clinic",need("doctor"),A(async(q,s)=>{const b=q.body||{},o={};for(const [k,n] of Object.entries(SET))o[k]=str(b[k],n);
  for(const k of ["sig","lh"])o[k]=typeof b[k]==="string"&&b[k].length<2.8e6&&IMG.test(b[k])?b[k]:"";
