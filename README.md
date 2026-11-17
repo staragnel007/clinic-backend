@@ -46,9 +46,17 @@ Tabs: Clinic Profile, Team, and Patient & Invoice Numbers (number prefixes). Cli
 - **Google review requests:** review link and WhatsApp message.
  Logos are resized in the browser to 600px; other images are stored as JPG/PNG under 2MB.
 
+## Bilingual forms (Settings > Bilingual Language)
+Pick a second language (Tamil, Hindi, Marathi, Telugu, Bengali, Gujarati, Kannada, Malayalam, Odia, Punjabi, Urdu,
+Assamese) or English only. Registration forms (QR page and desk), the consent and the Patient Report then show
+"English / second language". Built-in translations live in `public/shared.js` and are a starting point: have a native
+speaker check them. Doctors can correct any label, section title or the consent text in Settings > Registration Form.
+
 ## Registration form (Settings > Registration Form)
-Doctors can add, remove, rename, reorder and mark fields required, add sections, turn the patient signature box on or off,
-and add many fields at once by typing them as text (Label | type | options). Name, age, sex and phone are locked.
+Doctors can add, remove, rename, reorder and mark fields required, use Yes/No questions (a standard 13-item medical
+history checklist can be added in one click; any Yes shows as an alert on the patient page), add sections, turn the patient signature box on or off,
+and add many fields at once by typing them as text (Label | type | options).
+Every form ends with a consent the patient must agree to; the date is saved with the patient and printed on the report. Name, age, sex and phone are locked.
 The same form is used for adding patients at the desk and for the public QR page. When the signature is on, patients
 sign with a finger on the QR page and the signature prints on the Patient Report. Uploading a photo or PDF of a paper
 form for automatic extraction is not included.
