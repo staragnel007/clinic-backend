@@ -20,7 +20,11 @@ creates its invoice automatically. Only doctors can delete a patient, which also
 Every new sign-up (Google or email) is sent to `/setup-clinic`, a 3-step form with a live letterhead preview:
 1. **Clinic:** name*, tagline, logo, phone/WhatsApp*, email (pre-filled), address* (street, area, city, state, pincode)
 2. **Doctor:** full name*, qualifications*, specialization, Medical/Dental Council registration number*
-3. **Billing (optional, can be skipped):** default consultation fee, timings, GSTIN, invoice/prescription footer note
+3. **Billing (optional, can be skipped):** default consultation fee, timings, GSTIN, invoice/prescription footer note.
+   Timings support several sessions a day (e.g. 10–12 and 3–5) and different hours for other days (e.g. Sunday morning).
+
+The printed letterhead is laid out for A4 (about 700px wide, 12mm margins). "Logo left, contact right" is the default
+arrangement; the preview shows the header scaled to A4 width, with a "View at actual size" option.
 
 Until it is finished, `clinics.is_setup_complete` is false: every page redirects to `/setup-clinic`, and the API refuses to
 create or change patients, visits, appointments, prescriptions, invoices, registrations, imports and users (HTTP 409).

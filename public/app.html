@@ -31,7 +31,7 @@ details.dd{position:relative;display:inline-block}details.dd summary{cursor:poin
 .menu{position:absolute;right:0;top:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:6;min-width:200px;padding:4px}.menu a{display:block;padding:8px 12px;color:inherit;text-decoration:none;border-radius:6px}.menu a:hover{background:var(--soft)}
 .bar{height:10px;border-radius:5px;background:var(--pri);min-width:2px}
 #md{position:fixed;inset:0;background:rgba(0,0,0,.5);overflow:auto;padding:20px 12px;z-index:20}#mb{max-width:640px;margin:0 auto;background:var(--card);border-radius:14px;padding:22px}#mb.wide{max-width:780px}
-#mb .mbar{display:flex;gap:8px;margin-bottom:12px}#doc{background:#fff;color:#111;padding:24px;border-radius:6px;font-size:14px}#doc table{width:100%}#doc th,#doc td{border-bottom:1px solid #ccc;color:#111;padding:6px}#doc th{color:#444}
+#mb .mbar{display:flex;gap:8px;margin-bottom:12px}#doc{background:#fff;color:#111;padding:24px;border-radius:6px;font-size:13px;max-width:748px;margin:0 auto}#doc table{width:100%}#doc th,#doc td{border-bottom:1px solid #ccc;color:#111;padding:6px}#doc th{color:#444}
 #doc .hd{text-align:center;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px}#doc .hd b{font-size:20px}#doc .rx{font-size:28px;font-weight:700;margin:10px 0 4px}#doc .sig{margin-top:56px;text-align:right}
 #lk{display:none;position:fixed;inset:0;background:var(--bg);z-index:40;align-items:center;justify-content:center;padding:16px}#lk.on{display:flex}#lk .card{width:100%;max-width:380px;margin:0}
 #lk.authbg{background:radial-gradient(1200px 700px at 85% 100%,#14897a 0,transparent 60%),linear-gradient(160deg,#0b3b36,#0f5e55 55%,#12806f);overflow:auto;align-items:flex-start;padding:40px 16px}
@@ -57,8 +57,9 @@ details.dd{position:relative;display:inline-block}details.dd summary{cursor:poin
 .rad{display:block;margin:6px 0;font-size:14px;color:var(--ink)}.rad input{width:auto;margin-right:8px}.card h3{margin:20px 0 10px}
 /* clinic setup wizard and clinic profile editor */
 .sw-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin:8px 0 18px}
-.sw{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:22px;align-items:start}.sw-p{position:sticky;top:84px}
-.paper{background:#fff;color:#111;border:1px solid var(--line);border-radius:12px;padding:20px;box-shadow:0 8px 24px rgba(0,0,0,.08);font-size:13px;overflow-wrap:anywhere}
+.sw{display:grid;grid-template-columns:minmax(0,1fr) minmax(400px,520px);gap:22px;align-items:start}.sw-p{position:sticky;top:84px;min-width:0}.sw>*{min-width:0}
+.paper{background:#fff;color:#111;border:1px solid var(--line);border-radius:12px;padding:14px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.08);font-size:13px;overflow-wrap:anywhere}
+.a4{width:700px;transform-origin:0 0}.tgr{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px}.ses .x{padding:4px 8px}
 .pvl{height:8px;background:#eceff1;border-radius:4px;margin:7px 0}details.pvd summary{cursor:pointer;list-style:none;margin-bottom:8px}details.pvd summary::-webkit-details-marker{display:none}
 .sg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px}.pf.w{grid-column:1/-1}
 .pf>label{font-size:13px;color:var(--ink);font-weight:600;margin-bottom:5px}.req{color:var(--bad)}.opt{font-weight:500;font-size:11px;color:var(--mut);background:var(--soft);border-radius:10px;padding:1px 8px;margin-left:6px}
@@ -71,8 +72,9 @@ details.dd{position:relative;display:inline-block}details.dd summary{cursor:poin
 .pre{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--bg)}.pre span{padding:0 4px 0 11px;color:var(--mut)}.pre input{border:0;background:none;box-shadow:none!important}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spn .7s linear infinite;vertical-align:-2px;margin-right:8px}@keyframes spn{to{transform:rotate(360deg)}}
 .btn:disabled{opacity:.7;cursor:wait}#sp-msg{margin:14px 0 0}#sp-msg:empty{display:none}
-@media(max-width:900px){.sw{grid-template-columns:1fr}.sw-p{position:static;order:-1}}@media(max-width:560px){.sg{grid-template-columns:1fr}}
-@media print{body>*:not(#md){display:none!important}#md{position:static;background:none;padding:0}#mb{max-width:none;padding:0}.mbar{display:none!important}#doc{padding:0}}
+@media(max-width:1000px){.sw{grid-template-columns:1fr}.sw-p{position:static;order:-1}}@media(max-width:560px){.sg{grid-template-columns:1fr}}
+@page{size:A4;margin:12mm}
+@media print{html,body{background:#fff!important}body>*:not(#md){display:none!important}#md{position:static;background:none;padding:0}#mb{max-width:none;padding:0}.mbar{display:none!important}#doc{padding:0}}
 </style></head><body class="lk">
 <header id="hd" class="hide"></header><main id="app"></main>
 <div id="md" class="hide"><div id="mb"></div></div><div id="lk"></div><div id="toast" class="hide"></div>
@@ -102,13 +104,21 @@ const show=(h,w)=>modal(`<div class="mbar"><button class="btn" data-a="print">Pr
 let TC="#1a5c3f";const DEFREV="Hi {name},\n\nThank you for visiting our clinic. We'd love to hear your feedback! Please take a moment to leave us a Google review:\n\n{link}";
 const TH=[["Ocean Teal","#1a5c3f","#e6f1ea",["#0d9488","#14b8a6","#f0fdfa"]],["Sage Green","#4d6b3a","#eaf0e4",["#5f7f4a","#a8b89a","#f6f6f4"]],["Midnight Blue","#1e3a5f","#e3ebf6",["#1e3a5f","#3b82f6","#0b1220"]],["Charcoal Slate","#374151","#e5e7eb",["#374151","#9ca3af","#111827"]],["Classic Gold","#a16207","#fef3c7",["#eab308","#ca8a04","#fefce8"]]];
 const applyTheme=n=>{const t=TH.find(x=>x[0]===(n||S.clinic.theme))||TH[0];TC=t[1];const r=document.documentElement.style;if(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches){r.removeProperty("--pri");r.removeProperty("--soft")}else{r.setProperty("--pri",t[1]);r.setProperty("--soft",t[2])}};
+/* compact letterhead sized for A4: about 700px wide = A4 width minus 12mm margins */
 const hdrHtml=(c=S.clinic)=>{if(c.lh)return `<img src="${c.lh}" alt="" style="width:100%;display:block;margin-bottom:10px">`;
- const fs={Small:12,Normal:14,Large:16}[c.txt]||14,ns={Small:18,Medium:24,Large:30}[c.nsize]||24,nm=E(c.name||"Clinic"),logo=c.logo?`<img src="${c.logo}" alt="" style="max-height:64px">`:"",tag=c.tag?`<div style="color:${TC};font-weight:600">${E(c.tag)}</div>`:"",d=c.doctor?"Dr. "+c.doctor.replace(/^Dr\.?\s*/i,""):"",
- ct=[d&&`<b>${E(d)}</b>`,c.qual&&E(c.qual),c.spec&&E(c.spec),c.reg&&"Reg. No: "+E(c.reg),c.phone&&E(c.phlabel||"Contact")+": "+E(/^\d{10}$/.test(c.phone)?PH(c.phone):c.phone),c.email&&E(c.email),c.time&&`<b style="color:${TC}">${E(c.time)}</b>`].filter(Boolean).join("<br>"),
- ad=[c.addr,c.area,c.city,[c.state,c.pin].filter(Boolean).join(" - ")].filter(Boolean).map(E).join(", "),h=c.hdr||"centre",addr=ad?`<div style="font-size:${fs-2}px;color:#666;margin-top:6px">${ad}</div>`:"";
- if(h==="left")return `<div style="font-size:${fs}px;border-bottom:2px solid ${TC};padding-bottom:8px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div style="display:flex;gap:10px;align-items:center">${logo}<div><div style="font-size:${ns}px;font-weight:700;color:${TC}">${nm}</div>${tag}</div></div><div style="text-align:right">${ct}</div></div>${addr}</div>`;
- if(h==="band")return `<div style="font-size:${fs}px;text-align:center;margin-bottom:12px"><div style="background:${TC};color:#fff;padding:10px;font-size:${ns}px;font-weight:700">${nm}${c.tag?`<div style="font-size:${fs}px;font-weight:400">${E(c.tag)}</div>`:""}</div><div style="padding-top:8px">${ct}</div>${addr}</div>`;
- return `<div style="font-size:${fs}px;text-align:center;border-bottom:2px solid ${TC};padding-bottom:8px;margin-bottom:12px">${logo}<div style="font-size:${ns}px;font-weight:700;color:${TC}">${nm}</div>${tag}<div style="margin-top:4px">${ct}</div>${addr}</div>`};
+ const fs={Small:11,Normal:12,Large:13.5}[c.txt]||12,ns={Small:18,Medium:22,Large:26}[c.nsize]||22,nm=E(c.name||"Clinic"),sm=`font-size:${fs-1}px;color:#555`,h=c.hdr||"left",
+ lg=mh=>c.logo?`<img src="${c.logo}" alt="" style="max-height:${mh}px;max-width:${mh*2}px;object-fit:contain;flex:none;display:block">`:"",
+ d=c.doctor?"Dr. "+c.doctor.trim().replace(/^Dr\.?\s*/i,""):"",cred=[c.qual,c.spec].filter(Boolean).map(E).join(" · "),
+ ph=c.phone?E(c.phlabel||"Ph")+": "+E(/^\d{10}$/.test(c.phone)?PH(c.phone):c.phone):"",cont=[ph,c.email&&E(c.email)].filter(Boolean).join(" &nbsp;·&nbsp; "),
+ ad=[c.addr,c.area,c.city,[c.state,c.pin].filter(Boolean).join(" - ")].filter(Boolean).map(E).join(", "),tms=String(c.time||"").split(/\s*;\s*/).filter(Boolean).map(E),
+ name=`<div style="font-size:${ns}px;font-weight:700;color:${TC};line-height:1.15">${nm}</div>`,tag=c.tag?`<div style="color:${TC};font-weight:600">${E(c.tag)}</div>`:"",
+ info=(ad?`<div style="${sm};margin-top:3px">${ad}</div>`:"")+(cont?`<div style="${sm}">${cont}</div>`:""),
+ doc=(d?`<div style="font-weight:700;font-size:${fs+2}px">${E(d)}</div>`:"")+(cred?`<div>${cred}</div>`:"")+(c.reg?`<div>Reg. No: ${E(c.reg)}</div>`:"")+(tms.length?`<div style="color:${TC};font-weight:600;margin-top:2px">${tms.join("<br>")}</div>`:""),
+ box=`font-size:${fs}px;line-height:1.35;color:#111;border-bottom:2px solid ${TC};padding-bottom:8px;margin-bottom:10px`,
+ cols=l=>`<div style="display:flex;justify-content:space-between;gap:18px;align-items:flex-start"><div style="display:flex;gap:12px;align-items:center;min-width:0;flex:1 1 55%">${l}</div><div style="text-align:right;min-width:0;flex:1 1 45%">${doc}</div></div>`;
+ if(h==="centre")return `<div style="${box};text-align:center">${c.logo?`<div style="display:flex;justify-content:center;margin-bottom:4px">${lg(48)}</div>`:""}${name}${tag}<div style="margin-top:4px">${[d&&`<b>${E(d)}</b>`,cred,c.reg&&"Reg. No: "+E(c.reg)].filter(Boolean).join(" &nbsp;·&nbsp; ")}</div>${tms.length?`<div style="color:${TC};font-weight:600">${tms.join(" &nbsp;|&nbsp; ")}</div>`:""}${info}</div>`;
+ if(h==="band")return `<div style="${box}"><div style="background:${TC};color:#fff;padding:8px 12px;border-radius:4px;margin-bottom:8px;display:flex;align-items:center;gap:12px">${c.logo?`<span style="background:#fff;border-radius:4px;padding:3px;display:flex">${lg(38)}</span>`:""}<div><div style="font-size:${ns}px;font-weight:700;line-height:1.15">${nm}</div>${c.tag?`<div>${E(c.tag)}</div>`:""}</div></div>${cols(`<div style="min-width:0">${info.replace("margin-top:3px","margin-top:0")}</div>`)}</div>`;
+ return `<div style="${box}">${cols(`${lg(58)}<div style="min-width:0">${name}${tag}${info}</div>`)}</div>`};
 const dh=t=>hdrHtml()+`<h3 style="text-align:center;margin:0 0 10px">${t}</h3>`;
 const sigHtml=()=>{const c=S.clinic,col=c.stampcol==="Black"?"#111":"#1d3a8a",ln=(c.stamp||"").split("\n").filter(Boolean);return `<div class="sig">${c.sig?`<img src="${c.sig}" alt="" style="max-height:60px;display:block;margin-left:auto">`:""}<div style="color:${col}">${E(dr())||"Doctor’s signature"}${c.sigstyle==="full"?`${c.qual?"<br>"+E(c.qual):""}${c.reg?"<br>Reg. No: "+E(c.reg):""}`:""}${ln.length?"<br>"+ln.map(E).join("<br>"):""}</div>${c.stampmode==="box"?'<div style="display:inline-block;width:90px;height:90px;border:1px dashed #999;margin-top:8px"></div>':""}</div>`};
 const pl=(p,no,d)=>`<table><tr><td><b>${E(p.name)}</b>, ${E(p.age)} y / ${E(p.sex)}<br>${p.id} · ${E(PH(p.ph))}${p.al?"<br><b>Allergies:</b> "+E(p.al):""}</td><td class="r">${no}<br>Date: ${fd(d)}</td></tr></table>`;
@@ -206,8 +216,8 @@ function stab(){document.querySelectorAll(".tabs a[data-a=stab]").forEach(a=>a.c
  <div style="margin-top:10px"><label class="rad"><input type="radio" name="sm" value="none" ${c.stampmode!=="box"?"checked":""}>No stamp</label><label class="rad"><input type="radio" name="sm" value="box" ${c.stampmode==="box"?"checked":""}>Leave a box to stamp by hand</label></div><div class="row"><button class="btn" data-a="profsave">Save Changes</button></div></div>
  <div class="card"><div class="between"><h2 style="margin:0">Letterhead</h2><button class="lnk" data-a="sample">See a sample page →</button></div><p class="mut">Your clinic details print at the top of every document. Upload your own printed letterhead to use that instead.</p>
  <div class="row" style="margin:0 0 8px"><label class="btn o" style="margin:0">Upload my letterhead<input type="file" accept="image/png,image/jpeg" data-up="lh" class="hide"></label>${c.lh?bt("lhrm","","Remove letterhead","x"):""}</div><div class="mut" style="font-size:13px">A wide image works best, about 1600 pixels across, under 2MB. Scan the pad rather than photograph it.</div>
- <h3>Header arrangement</h3><div class="g">${[["left","Logo left, contact right","Like a printed letterhead pad."],["centre","Centred","Everything stacked in the middle."],["band","Coloured band","Name in a band, contact beneath."]].map(x=>`<button class="swb ${(c.hdr||"centre")===x[0]?"on":""}" data-a="hdr" data-id="${x[0]}" style="text-align:left"><b>${x[1]}</b><br><span class="mut">${x[2]}</span></button>`).join("")}</div>
- <div class="g" style="margin:14px 0">${selv("lh-txt","Text size",["Small","Normal","Large"],c.txt||"Normal")}${selv("lh-ns","Clinic name size",["Small","Medium","Large"],c.nsize||"Medium")}</div><div id="lhp" style="background:#fff;color:#111;border:1px solid var(--line);border-radius:10px;padding:16px">${hdrHtml()}</div></div>`;
+ <h3>Header arrangement</h3><div class="g">${[["left","Logo left, contact right","Like a printed letterhead pad."],["centre","Centred","Everything stacked in the middle."],["band","Coloured band","Name in a band, contact beneath."]].map(x=>`<button class="swb ${(c.hdr||"left")===x[0]?"on":""}" data-a="hdr" data-id="${x[0]}" style="text-align:left"><b>${x[1]}</b><br><span class="mut">${x[2]}</span></button>`).join("")}</div>
+ <div class="g" style="margin:14px 0">${selv("lh-txt","Text size",["Small","Normal","Large"],c.txt||"Normal")}${selv("lh-ns","Clinic name size",["Small","Medium","Large"],c.nsize||"Medium")}</div><div id="lhp" style="background:#fff;color:#111;border:1px solid var(--line);border-radius:10px;padding:16px;max-width:734px">${hdrHtml()}</div></div>`;
  if(ST==="profile"){spInit("set");spDraw()}}
 const scModal=id=>{const c=S.clinic,ta=(h,v,pl)=>modal(`<h2>${h[0]}</h2><p class="mut">${h[1]}</p><textarea id="sc-t" placeholder="${pl||""}" style="min-height:180px">${E(v)}</textarea><div class="row"><button class="btn" data-a="scsave" data-id="${id}">Save</button><button class="btn s" data-a="close">Cancel</button></div>`);
  if(id==="notes")ta(["Diagnosis and Doctor's Notes","Extra note boxes shown under Notes when you record a visit, for example Treatment Plan. One per line, up to 10."],(c.noteBoxes||[]).join("\n"),"Treatment Plan");
@@ -286,11 +296,17 @@ const SPV={name:v=>!v&&"Enter your clinic name",phone:v=>{const p=normPh(v);retu
  email:v=>v&&!/^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,24}$/i.test(v)&&"Enter a valid email address",addr:v=>!v&&"Enter the street address",city:v=>!v&&"Enter the city",
  state:v=>!v?"Choose the state":!STATES.includes(v)&&"Choose a state from the list",pin:v=>!v?"Enter the pincode":!/^[1-9]\d{5}$/.test(v)&&"Pincode must be 6 digits",
  doctor:v=>!v&&"Enter the doctor's full name",qual:v=>!v&&"Enter the doctor's qualifications",reg:v=>!v&&"Enter the council registration number",
- fee:v=>v&&!/^\d{1,7}(\.\d{1,2})?$/.test(v)&&"Enter the fee as a number, e.g. 500",gstin:v=>v&&!GSTRE.test(v)&&"GSTIN should be 15 characters, e.g. 29ABCDE1234F1Z5"};
-let PV={},SP={mode:"",step:1,ready:false,busy:false,td:[1,1,1,1,1,1,0],t1:"10:00",t2:"20:00"};
+ fee:v=>v&&!/^\d{1,7}(\.\d{1,2})?$/.test(v)&&"Enter the fee as a number, e.g. 500",time:v=>v&&v===genTime()&&tgIssue(),gstin:v=>v&&!GSTRE.test(v)&&"GSTIN should be 15 characters, e.g. 29ABCDE1234F1Z5"};
+let PV={},SP={mode:"",step:1,ready:false,busy:false,tg:[]};
+/* working hours: groups of days, each with one or more sessions, e.g. Mon–Sat 10–1 and 5–8, Sun 10–12 */
+const defTG=()=>[{d:[1,1,1,1,1,1,0],s:[["10:00","20:00"]]}],DIX=Object.fromEntries(DAYS.map((d,i)=>[d.toLowerCase(),i]));
+const p24=x=>{const m=String(x).trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);if(!m||+m[1]>12)return null;return String(+m[1]%12+(/pm/i.test(m[3])?12:0)).padStart(2,"0")+":"+m[2]};
+const parseTime=t=>{if(!t)return null;const gs=[];for(const part of t.split(/\s*;\s*/).filter(Boolean)){const m=part.match(/^([A-Za-z,\s–-]+):\s*(.+)$/);if(!m)return null;const d=[0,0,0,0,0,0,0],ss=[];
+  for(const tok of m[1].split(",")){const r=tok.trim().split(/\s*[–-]\s*/),a=DIX[(r[0]||"").toLowerCase()],b=r[1]?DIX[r[1].toLowerCase()]:a;if(a==null||b==null||b<a)return null;for(let i=a;i<=b;i++)d[i]=1}
+  for(const rg of m[2].split(",")){const x=rg.split(/\s*[–-]\s*/),f=x.length===2&&p24(x[0]),to=x.length===2&&p24(x[1]);if(!f||!to)return null;ss.push([f,to])}gs.push({d,s:ss})}return gs.length?gs:null};
 const spInit=mode=>{const c=S.clinic;PV={};PKEYS.forEach(k=>PV[k]=String(c[k]??""));
- if(mode==="wiz"){const nm=ME.name||"";if(!PV.doctor&&nm&&nm!==(ME.email||"").split("@")[0])PV.doctor=nm;if(!PV.email)PV.email=ME.email||""}
- SP.mode=mode;SP.step=1;SP.ready=true};
+ if(mode==="wiz"){if(!PV.time){SP.tg=defTG();PV.time=genTime()}const nm=ME.name||"";if(!PV.doctor&&nm&&nm!==(ME.email||"").split("@")[0])PV.doctor=nm;if(!PV.email)PV.email=ME.email||""}
+ SP.tg=parseTime(PV.time)||defTG();SP.mode=mode;SP.step=1;SP.ready=true};
 const spv=k=>String(PV[k]??"").trim(),spBad=k=>SPV[k]?SPV[k](spv(k))||"":"";
 const pf=(k,l,req,x="",w)=>`<div class="pf${w?" w":""}"><label for="sp-${k}">${l}${req?' <span class="req" aria-hidden="true">*</span>':'<span class="opt">Optional</span>'}</label><input id="sp-${k}" data-sp="${k}" value="${E(PV[k])}"${req?' aria-required="true"':""} ${x}><div class="fe" id="fe-${k}"></div></div>`;
 const spSec={
@@ -307,16 +323,20 @@ const spSec={
  3:()=>`<h2>Billing &amp; timings</h2><p class="mut" style="margin-top:-6px">All optional. Fill in what you have now; everything can be changed later.</p>
  <div class="sg"><div class="pf"><label for="sp-fee">Default consultation fee<span class="opt">Optional</span></label><div class="pre"><span>₹</span><input id="sp-fee" data-sp="fee" type="number" min="0" step="1" inputmode="decimal" placeholder="500" value="${E(PV.fee)}"></div><div class="fe" id="fe-fee"></div></div>
  ${pf("gstin","GSTIN / tax registration no.",0,'maxlength="15" placeholder="e.g. 29ABCDE1234F1Z5" style="text-transform:uppercase" autocapitalize="characters" spellcheck="false"')}
- <div class="pf w"><label for="sp-time">Clinic timings / working days<span class="opt">Optional</span></label><div class="days" role="group" aria-label="Working days">${DAYS.map((d,i)=>`<button type="button" class="day${SP.td[i]?" on":""}" data-a="spday" data-id="${i}" aria-pressed="${!!SP.td[i]}">${d}</button>`).join("")}</div>
- <div class="row" style="margin:8px 0"><input type="time" id="sp-t1" value="${SP.t1}" style="width:auto" aria-label="Opens at"><span class="mut">to</span><input type="time" id="sp-t2" value="${SP.t2}" style="width:auto" aria-label="Closes at"></div>
- <input id="sp-time" data-sp="time" value="${E(PV.time)}" maxlength="150" placeholder="Tap the days above, or type e.g. Mon–Sat: 10:00 AM – 8:00 PM"><div class="fe" id="fe-time"></div></div>
+ <div class="pf w"><label for="sp-time">Clinic timings / working days<span class="opt">Optional</span></label><div class="mut" style="font-size:12.5px;margin-bottom:8px">Pick the days, then add a session for each sitting, e.g. 10:00–12:00 and 3:00–5:00.</div><div id="sp-tw">${tgHtml()}</div>
+
+ <label for="sp-time" style="margin-top:10px">Printed as <span class="mut" style="font-weight:400">(you can also type your own)</span></label><input id="sp-time" data-sp="time" value="${E(PV.time)}" maxlength="300" placeholder="e.g. Mon–Sat: 10:00 AM – 1:00 PM, 5:00 PM – 8:00 PM; Sun: 10:00 AM – 12:00 PM"><div class="fe" id="fe-time"></div></div>
  <div class="pf w"><label for="sp-billnote">Invoice / prescription footer note<span class="opt">Optional</span></label><input id="sp-billnote" data-sp="billnote" value="${E(PV.billnote)}" maxlength="300" placeholder="Printed at the bottom of invoices and prescriptions"><div>${FOOT.map((t,i)=>`<button type="button" class="sug" data-a="spsug" data-id="${i}">+ ${E(t)}</button>`).join("")}</div><div class="fe" id="fe-billnote"></div></div></div>`};
-const pvBox=()=>`<details class="pvd" open><summary><span class="lbl">Live preview · prescription header ▾</span></summary><div id="sp-pv" class="paper"></div>${S.clinic.lh&&SP.mode!=="wiz"?'<p class="mut" style="font-size:12.5px">You have uploaded a printed letterhead, so documents print that image instead of this header.</p>':""}</details>`;
-function spPrev(){const el=$("#sp-pv");if(!el)return;const c={...S.clinic,...PV,lh:"",name:spv("name")||"Your Clinic Name",phone:normPh(PV.phone)||spv("phone")},d=c.doctor?"Dr. "+c.doctor.trim().replace(/^Dr\.?\s*/i,""):"Dr. Your Name";
- el.innerHTML=hdrHtml(c)+`<div style="text-align:center;font-weight:700;letter-spacing:1px;font-size:12px;margin:0 0 8px">PRESCRIPTION</div><div style="display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:#555"><span>Ramesh S · 42 y / Male</span><span>Date: ${fd(td())}</span></div>
+const pvBox=()=>`<details class="pvd" open><summary><span class="lbl">Live preview · prescription header ▾</span></summary><div id="sp-pv" class="paper"></div><div class="between" style="margin-top:6px"><span class="mut" style="font-size:12px">Scaled to A4 paper width</span><button type="button" class="lnk" data-a="spfull" style="font-size:13px">View at actual size →</button></div>${S.clinic.lh&&SP.mode!=="wiz"?'<p class="mut" style="font-size:12.5px">You have uploaded a printed letterhead, so documents print that image instead of this header.</p>':""}</details>`;
+const spDoc=()=>{const c={...S.clinic,...PV,lh:"",name:spv("name")||"Your Clinic Name",phone:normPh(PV.phone)||spv("phone")},d=c.doctor?"Dr. "+c.doctor.trim().replace(/^Dr\.?\s*/i,""):"Dr. Your Name";
+ return hdrHtml(c)+`<div style="text-align:center;font-weight:700;letter-spacing:1px;font-size:12px;margin:0 0 8px">PRESCRIPTION</div><div style="display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:#555"><span>Ramesh S · 42 y / Male</span><span>Date: ${fd(td())}</span></div>
  <div style="font-size:24px;font-weight:700;margin:8px 0 0">℞</div><div class="pvl"></div><div class="pvl" style="width:72%"></div><div class="pvl" style="width:58%"></div>
  <div style="text-align:right;margin-top:22px;font-size:12px;color:#1d3a8a"><b>${E(d)}</b>${c.qual?"<br>"+E(c.qual):""}${c.reg?"<br>Reg. No: "+E(c.reg):""}</div>
- ${c.billnote||c.gstin?`<div style="border-top:1px solid #ddd;margin-top:12px;padding-top:6px;text-align:center;font-size:11px;color:#555">${[c.billnote&&E(c.billnote),c.gstin&&"GSTIN: "+E(c.gstin.toUpperCase())].filter(Boolean).join("<br>")}</div>`:""}`}
+ ${c.billnote||c.gstin?`<div style="border-top:1px solid #ddd;margin-top:12px;padding-top:6px;text-align:center;font-size:11px;color:#555">${[c.billnote&&E(c.billnote),c.gstin&&"GSTIN: "+E(c.gstin.toUpperCase())].filter(Boolean).join("<br>")}</div>`:""}`};
+/* the preview is drawn at A4 width (700px) and scaled down to fit, so it matches the printed page */
+const fitA4=()=>{const el=$("#sp-pv"),a=el&&el.firstElementChild;if(!a)return;const w=el.clientWidth-28;if(w<=0)return;const k=Math.min(1,w/700);a.style.transform=`scale(${k})`;el.style.height=Math.ceil(a.offsetHeight*k+28)+"px"};
+function spPrev(){const el=$("#sp-pv");if(!el)return;el.innerHTML=`<div class="a4">${spDoc()}</div>`;fitA4()}
+window.addEventListener("resize",fitA4);document.addEventListener("toggle",fitA4,true);
 function spDraw(){const r=$("#sp-root");if(!r)return;
  if(SP.mode==="wiz"){const n=SP.step;r.innerHTML=`<div class="prog"><div class="pst">${STEPS.map((s,i)=>i+1===n?`<b>${i+1}. ${s}</b>`:`<span>${i+1<n?"✓ ":""}${i+1}. ${s}</span>`).join("")}</div><div class="pbar" role="progressbar" aria-label="Setup progress" aria-valuemin="1" aria-valuemax="3" aria-valuenow="${n}"><i style="width:${n/3*100}%"></i></div><div class="mut" style="font-size:12.5px;margin-top:6px">Step ${n} of 3${n===3?" · almost done":""}</div></div>
   <div id="sp-body">${spSec[n]()}</div><p class="bad" id="sp-msg" role="alert"></p>
@@ -343,9 +363,15 @@ async function spSubmit(btn,skip){if(SP.busy)return;$("#sp-msg").textContent="";
   const m=$("#sp-msg");if(m)m.textContent=e.message||"Could not save. Please try again."}
  finally{SP.busy=false;document.querySelectorAll(".sw-nav .btn").forEach(b=>b.disabled=false);if(btn.isConnected)btn.innerHTML=h}}
 const t12=t=>{if(!/^\d{2}:\d{2}$/.test(t||""))return "";let [hh,mm]=t.split(":").map(Number);const ap=hh>=12?"PM":"AM";hh=hh%12||12;return `${hh}:${String(mm).padStart(2,"0")} ${ap}`};
-const genTime=()=>{const r=[];let i=0;while(i<7){if(!SP.td[i]){i++;continue}let j=i;while(j+1<7&&SP.td[j+1])j++;r.push(j-i>=2?DAYS[i]+"–"+DAYS[j]:DAYS.slice(i,j+1).join(", "));i=j+1}
- const d=r.join(", "),hr=t12(SP.t1)&&t12(SP.t2)?t12(SP.t1)+" – "+t12(SP.t2):"";return d?(hr?d+": "+hr:d):hr};
-const spTime=()=>{PV.time=genTime();const i=$("#sp-time");if(i)i.value=PV.time;spErr("time","");spPrev()};
+const runs=d=>{const r=[];let i=0;while(i<7){if(!d[i]){i++;continue}let j=i;while(j+1<7&&d[j+1])j++;r.push(j-i>=2?DAYS[i]+"–"+DAYS[j]:DAYS.slice(i,j+1).join(", "));i=j+1}return r.join(", ")};
+const genTime=()=>SP.tg.map(g=>{const dd=runs(g.d),ss=g.s.filter(x=>t12(x[0])&&t12(x[1])).sort((a,b)=>a[0].localeCompare(b[0])).map(x=>t12(x[0])+" – "+t12(x[1])).join(", ");return dd?(ss?dd+": "+ss:dd):SP.tg.length===1?ss:""}).filter(Boolean).join("; ");
+const tgIssue=()=>{for(const g of SP.tg){const ss=g.s.filter(x=>x[0]&&x[1]).sort((a,b)=>a[0].localeCompare(b[0]));for(let i=0;i<ss.length;i++){if(ss[i][1]<=ss[i][0])return "Each session must end after it starts";if(i&&ss[i][0]<ss[i-1][1])return "Two sessions overlap. Please check the times"}}return ""};
+const tgHtml=()=>SP.tg.map((g,gi)=>`<div class="tgr">${SP.tg.length>1?`<div class="between" style="margin-bottom:6px"><span class="lbl">Days group ${gi+1}</span>${bt("spgrm","","Remove","x",`data-g="${gi}"`)}</div>`:""}
+ <div class="days" role="group" aria-label="Working days">${DAYS.map((d,i)=>`<button type="button" class="day${g.d[i]?" on":""}" data-a="spday" data-g="${gi}" data-id="${i}" aria-pressed="${!!g.d[i]}">${d}</button>`).join("")}</div>
+ ${g.s.map((x,si)=>`<div class="row ses" style="margin:8px 0 0"><span class="mut" style="width:74px;font-size:12.5px">${g.s.length>1?"Session "+(si+1):"Hours"}</span><input type="time" data-st="${gi},${si},0" value="${x[0]}" style="width:auto" aria-label="Session ${si+1} from"><span class="mut">to</span><input type="time" data-st="${gi},${si},1" value="${x[1]}" style="width:auto" aria-label="Session ${si+1} to">${g.s.length>1?bt("spsrm","","✕","x",`data-g="${gi}" data-s="${si}" aria-label="Remove session ${si+1}"`):""}</div>`).join("")}
+ ${g.s.length<4?`<button type="button" class="lnk" data-a="spsadd" data-g="${gi}" style="margin-top:8px;font-size:13px">+ Add another session (e.g. evening)</button>`:""}</div>`).join("")+
+ (SP.tg.length<4?`<button type="button" class="lnk" data-a="spgadd" style="font-size:13px">+ Different hours for other days (e.g. Saturday or Sunday)</button>`:"");
+const spTime=redraw=>{if(redraw){const w=$("#sp-tw");if(w)w.innerHTML=tgHtml()}PV.time=genTime();const i=$("#sp-time");if(i)i.value=PV.time;spErr("time",tgIssue());spPrev()};
 /* logos are resized in the browser to at most 600px so they stay small in the database and fast to print */
 const shrink=f=>new Promise((ok,no)=>{if(!f)return no(new Error("No file chosen"));if(!/^image\/(png|jpeg)$/.test(f.type))return no(new Error("Please choose a PNG or JPG image"));if(f.size>1e7)return no(new Error("That image is over 10MB. Please choose a smaller one."));
  const rd=new FileReader();rd.onerror=()=>no(new Error("Could not read the file"));rd.onload=()=>{const im=new Image();im.onerror=()=>no(new Error("That file isn't a valid image"));
@@ -357,9 +383,14 @@ document.addEventListener("click",e=>{const t=e.target.closest("[data-a^=sp]");i
  else if(a==="spback"){SP.step--;spDraw();scrollTo(0,0)}
  else if(a==="spfinish"||a==="spsave")spSubmit(t,false);else if(a==="spskip")spSubmit(t,true);
  else if(a==="splogorm"){PV.logo="";spDraw()}
- else if(a==="spday"){const i=+t.dataset.id;SP.td[i]=SP.td[i]?0:1;t.classList.toggle("on",!!SP.td[i]);t.setAttribute("aria-pressed",!!SP.td[i]);spTime()}
+ else if(a==="spday"){const gi=+t.dataset.g,i=+t.dataset.id,g=SP.tg[gi];g.d[i]=g.d[i]?0:1;if(g.d[i])SP.tg.forEach((o,oi)=>{if(oi!==gi)o.d[i]=0});spTime(1)}
+ else if(a==="spsadd"){const g=SP.tg[+t.dataset.g],f=g.s[0];if(g.s.length===1&&f[0]&&f[1]&&f[0]<"13:00"&&f[1]>"17:00"){g.s=[[f[0],"13:00"],["17:00",f[1]]]}else{const l=g.s[g.s.length-1][1];g.s.push(l&&l<"17:00"?["17:00","20:00"]:["",""])}spTime(1)}
+ else if(a==="spsrm"){const g=SP.tg[+t.dataset.g];g.s.splice(+t.dataset.s,1);spTime(1)}
+ else if(a==="spgadd"){const used=DAYS.map((_,i)=>SP.tg.some(g=>g.d[i])?1:0);SP.tg.push({d:used.map(u=>u?0:1),s:[["10:00","13:00"]]});spTime(1)}
+ else if(a==="spgrm"){SP.tg.splice(+t.dataset.g,1);spTime(1)}
+ else if(a==="spfull")show(spDoc());
  else if(a==="spsug"){const s=FOOT[+t.dataset.id],cur=spv("billnote");PV.billnote=!cur?s:cur.includes(s)?cur:cur+" "+s;$("#sp-billnote").value=PV.billnote;spPrev()}});
-document.addEventListener("input",e=>{const t=e.target;if(t.id==="sp-t1"||t.id==="sp-t2"){SP[t.id.slice(3)]=t.value;spTime();return}
+document.addEventListener("input",e=>{const t=e.target;if(t.dataset&&t.dataset.st){const [gi,si,k]=t.dataset.st.split(",").map(Number);SP.tg[gi].s[si][k]=t.value;spTime();return}
  const k=t.dataset&&t.dataset.sp;if(!k)return;PV[k]=k==="gstin"?t.value.toUpperCase():t.value;if(t.classList.contains("inv"))spErr(k,"");spPrev()});
 document.addEventListener("focusout",e=>{const k=e.target.dataset&&e.target.dataset.sp;if(k&&spv(k)&&SPV[k])spErr(k,spBad(k))});
 document.addEventListener("change",async e=>{const t=e.target;if(!t.dataset||!t.dataset.splogo)return;const f=t.files[0];t.value="";spErr("logo","");try{PV.logo=await shrink(f);spDraw()}catch(x){spErr("logo",x.message)}});
