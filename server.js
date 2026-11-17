@@ -93,6 +93,7 @@ app.get(["/","/setup-clinic"],A(async(q,s)=>{const u=await who(q),onSetup=q.path
  s.set("Cache-Control","no-store").sendFile(APP)}));
 app.get(["/signup","/forgot","/reset"],(q,s)=>s.set("Cache-Control","no-store").sendFile(APP));
 app.get("/medpacks.js",(q,s)=>s.sendFile(path.join(__dirname,"public/medpacks.js")));
+app.get("/pricepacks.js",(q,s)=>s.sendFile(path.join(__dirname,"public/pricepacks.js")));
 app.get("/shared.js",(q,s)=>s.sendFile(path.join(__dirname,"public/shared.js")));
 app.get("/qrcode.js",(q,s)=>s.sendFile(require.resolve("qrcode-generator/qrcode.js")));
 app.get(["/register","/register/:slug"],A(async(q,s)=>{const sl=q.params.slug||"",cid=await bySlug(sl);if(!cid)return s.status(404).type("text").send("This registration link is not valid. Please ask the clinic for a new one.");
@@ -329,8 +330,8 @@ app.post("/api/sig/:id",A(async(q,s)=>{const id=str(q.params.id,20),sg=q.body&&q
  await audit(q.u,"patient_sig",id);s.json({ok:true})}));
 
 /* Settings > Invoice price list: name, category, price, in use. Duplicate names are dropped. */
-function cleanPrices(a){const seen=new Set(),o=[];for(const x of (Array.isArray(a)?a:[]).slice(0,1000)){if(!x||typeof x!=="object")continue;const n=str(x.n,80);if(!n)continue;const k=n.toLowerCase().replace(/\s+/g," ");if(seen.has(k))continue;seen.add(k);
- const r=Math.max(0,Math.min(1e7,+x.r||0));o.push({id:str(x.id,20)||"p"+o.length,n,c:str(x.c,30),r:Math.round(r*100)/100,on:x.on!==false})}return o}
+function cleanPrices(a){const seen=new Set(),o=[];for(const x of (Array.isArray(a)?a:[]).slice(0,1500)){if(!x||typeof x!=="object")continue;const n=str(x.n,80);if(!n)continue;const c=str(x.c,40)||"Other",k=(c+"|"+n).toLowerCase().replace(/\s+/g," ");if(seen.has(k))continue;seen.add(k);
+ const r=x.r===""||x.r==null?"":Math.round(Math.max(0,Math.min(1e7,+x.r||0))*100)/100;o.push({id:str(x.id,20)||"p"+o.length,n,c,r,on:x.on!==false})}return o}
 /* delete one invoice row (doctor only) */
 app.delete("/api/bills/:id",need("doctor"),A(async(q,s)=>{const id=str(q.params.id,20);const r=await Q("DELETE FROM docs WHERE cid=$1 AND coll='bills' AND id=$2",[q.u.cid,id]);if(!r.rowCount)return s.status(404).json({error:"Not found"});await audit(q.u,"bill_delete",id);s.json({ok:true})}));
 /* records: patients, appts, rx (doctor only), bills */
