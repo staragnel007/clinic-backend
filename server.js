@@ -62,6 +62,7 @@ let DUMMY;
 const audit=(u,act,ref)=>Q("INSERT INTO audit(uid,cid,act,ref) VALUES($1,$2,$3,$4)",[u&&u.id||null,u&&u.cid||null,act,ref||""]).catch(e=>console.error("audit failed:",e.message));
 const hits=new Map(),limited=(k,max,ms)=>{const t=Date.now(),a=(hits.get(k)||[]).filter(x=>t-x<ms);a.push(t);hits.set(k,a);return a.length>max};
 setInterval(()=>{const t=Date.now();for(const [k,a] of hits)if(!a.some(x=>t-x<36e5))hits.delete(k);Q("DELETE FROM sessions WHERE exp<$1",[t]).catch(()=>{});Q("DELETE FROM resets WHERE exp<$1",[t]).catch(()=>{})},6e5).unref();
+const SH=require("./public/shared.js"),DEF_FORM=SH.DEF_FORM;
 const PFX={patients:"OP-",appts:"A-",rx:"RX-",bills:"INV-",visits:"V-"},CLIN=["dx","rx","notes","extra"];
 const pref=async(cid,c)=>{if(c!=="patients"&&c!=="bills")return PFX[c];const o=await clinic(cid),p=o[c==="patients"?"opPrefix":"invPrefix"];return /^[A-Za-z0-9-]{1,8}$/.test(p||"")?p:PFX[c]};
 const nextId=async(cid,c,x=Q)=>(await pref(cid,c))+String((await x("INSERT INTO kv(k,v) VALUES($1,'1') ON CONFLICT(k) DO UPDATE SET v=(kv.v::int+1)::text RETURNING v",["c"+cid+":seq:"+c])).rows[0].v).padStart(4,"0");
@@ -91,6 +92,7 @@ app.get(["/","/setup-clinic"],A(async(q,s)=>{const u=await who(q),onSetup=q.path
  if(u&&!u.setup&&!onSetup)return s.redirect("/setup-clinic");if(onSetup&&(!u||u.setup))return s.redirect("/");
  s.set("Cache-Control","no-store").sendFile(APP)}));
 app.get(["/signup","/forgot","/reset"],(q,s)=>s.set("Cache-Control","no-store").sendFile(APP));
+app.get("/shared.js",(q,s)=>s.sendFile(path.join(__dirname,"public/shared.js")));
 app.get("/qrcode.js",(q,s)=>s.sendFile(require.resolve("qrcode-generator/qrcode.js")));
 app.get(["/register","/register/:slug"],A(async(q,s)=>{const sl=q.params.slug||"",cid=await bySlug(sl);if(!cid)return s.status(404).type("text").send("This registration link is not valid. Please ask the clinic for a new one.");
  const c=await clinic(cid),nm=E(c.name||"Clinic");
@@ -100,7 +102,7 @@ const regHead=c=>{const ad=[c.addr,c.area,c.city,[c.state,c.pin].filter(Boolean)
   (ad||c.phone?`<div class="ad">${E(ad)}${c.phone?(ad?"<br>":"")+"Phone: "+E(c.phone):""}</div>`:"")};
 
 /* public: patient self-registration (inbox only, never writes patients directly) */
-app.get("/api/public/form",A(async(q,s)=>{const cid=await bySlug(str(q.query.c,20));if(!cid)return s.status(404).json({error:"Unknown clinic"});const c=await clinic(cid);s.json({name:c.name||"Clinic",form:c.regForm||DEF_FORM})}));
+app.get("/api/public/form",A(async(q,s)=>{const cid=await bySlug(str(q.query.c,20));if(!cid)return s.status(404).json({error:"Unknown clinic"});const c=await clinic(cid);s.json({name:c.name||"Clinic",lang:c.lang||"",form:c.regForm||DEF_FORM})}));
 app.post("/api/public/register",A(async(q,s)=>{
  if(limited("reg:"+q.ip,8,36e5))return s.status(429).json({error:"Too many submissions. Please try again later."});
  const b=q.body||{};if(b.website)return s.json({ok:true});
@@ -108,13 +110,13 @@ app.post("/api/public/register",A(async(q,s)=>{
  const form=(await clinic(cid)).regForm||DEF_FORM,d={},cu={},bad=m=>s.status(400).json({error:m});
  for(const sec of form.sections)for(const f of sec.f){const v=str(typeof b[f.id]==="number"?String(b[f.id]):b[f.id],f.y==="textarea"?500:150);
   if(!v){if(f.r)return bad("Please fill in: "+f.l);continue}
-  if(f.id==="age"?!/^\d{1,3}$/.test(v)||+v>120:f.y==="number"?!/^\d{1,6}(\.\d{1,2})?$/.test(v):f.id==="ph"?!/^[6-9]\d{9}$/.test(v):f.y==="phone"?!/^\d{10}$/.test(v):f.y==="date"?!/^\d{4}-\d{2}-\d{2}$/.test(v):f.y==="select"?!(f.o||[]).includes(v):false)return bad("Please check: "+f.l);
+  if(f.id==="age"?!/^\d{1,3}$/.test(v)||+v>120:f.y==="number"?!/^\d{1,6}(\.\d{1,2})?$/.test(v):f.id==="ph"?!/^[6-9]\d{9}$/.test(v):f.y==="phone"?!/^\d{10}$/.test(v):f.y==="date"?!/^\d{4}-\d{2}-\d{2}$/.test(v):f.y==="select"?!(f.o||[]).includes(v):f.y==="yesno"?!["Yes","No"].includes(v):false)return bad("Please check: "+f.l);
   if(CORE.includes(f.id))d[f.id]=v;else cu[f.id]=v}
- if(b.consent!==true)return bad("Please tick the consent box.");
+ if(b.consent!==true)return bad("Please tick the box to agree to the consent.");
  if(Object.keys(cu).length)d.custom=cu;
  if(form.sig){if(typeof b.sig!=="string"||!/^data:image\/png;base64,[A-Za-z0-9+\/=]{20,150000}$/.test(b.sig))return bad("Please sign in the box.");d.sig=b.sig}
  if((await one("SELECT COUNT(*)::int c FROM regs WHERE cid=$1",[cid])).c>=300)return s.status(503).json({error:"The clinic cannot accept more online registrations right now. Please register at the desk."});
- d.consent=true;await Q("INSERT INTO regs(cid,data) VALUES($1,$2)",[cid,JSON.stringify(d)]);s.json({ok:true})}));
+ d.consent=true;d.consentAt=today();await Q("INSERT INTO regs(cid,data) VALUES($1,$2)",[cid,JSON.stringify(d)]);s.json({ok:true})}));
 
 /* auth */
 const sameStr=(a,b)=>crypto.timingSafeEqual(crypto.createHash("sha256").update(String(a)).digest(),crypto.createHash("sha256").update(String(b)).digest());
@@ -244,12 +246,14 @@ app.get("/api/data",A(async(q,s)=>{const d=q.u.role==="doctor";
  const cid=q.u.cid,[cl,patients,appts,rx,bills,regs,users,visits,doctors]=await Promise.all([clinic(cid),all(cid,"patients"),all(cid,"appts"),d?all(cid,"rx"):[],all(cid,"bills"),Q("SELECT id,data,created FROM regs WHERE cid=$1 ORDER BY id",[cid]),d?Q("SELECT id,username,name,role,email FROM users WHERE cid=$1 ORDER BY id",[cid]):{rows:[]},all(cid,"visits"),Q("SELECT id,name FROM users WHERE cid=$1 AND role='doctor' ORDER BY id",[cid])]);
  const {slug,...me}=q.u;
  s.json({me,regPath:cid===1?"/register":"/register/"+slug,clinic:cl,patients,appts,rx,bills,doctors:doctors.rows,visits:d?visits:visits.map(v=>{const o={...v};CLIN.forEach(k=>delete o[k]);return o}),regs:regs.rows.map(r=>{const {sig,...o}=r.data;return {...o,id:r.id,created:r.created,hasSig:!!sig}}),users:users.rows})}));
-const BGL=["Unknown","A+","A-","B+","B-","AB+","AB-","O+","O-"],CORE=["name","age","sex","ph","bg","em","ad","al","hx"],LOCK=["name","age","sex","ph"],TYPES=["text","number","select","textarea","phone","date"];
-const DEF_FORM={sig:true,sections:[{t:"Personal Information",f:[{id:"name",l:"Patient Name",y:"text",r:1,k:1},{id:"age",l:"Age",y:"number",r:1,k:1},{id:"sex",l:"Sex",y:"select",o:["Male","Female","Other"],r:1,k:1},{id:"ph",l:"Phone",y:"phone",r:1,k:1},{id:"bg",l:"Blood Group",y:"select",o:BGL},{id:"em",l:"Guardian / Emergency contact",y:"text"},{id:"ad",l:"Address",y:"textarea"}]},{t:"Medical History",f:[{id:"al",l:"Known allergies",y:"textarea"},{id:"hx",l:"Medical history / notes",y:"textarea"}]}]};
-const cleanForm=f=>{try{const seen=new Set(),secs=(Array.isArray(f&&f.sections)?f.sections:[]).slice(0,12).map(sc=>({t:str(sc&&sc.t,80)||"Section",f:(Array.isArray(sc&&sc.f)?sc.f:[]).slice(0,40).map(x=>{const id=str(x&&x.id,12);if(!(CORE.includes(id)||/^c_[a-z0-9]{3,8}$/.test(id))||seen.has(id))return null;seen.add(id);const o={id,l:str(x.l,80)||"Field",y:TYPES.includes(x.y)?x.y:"text"};
+const CORE=["name","age","sex","ph","bg","em","ad","al","hx"],LOCK=["name","age","sex","ph"],TYPES=["text","number","select","textarea","phone","date","yesno"];
+/* registration form fields may carry a second-language label (t) and a placeholder (p); sections a translated title (tt);
+   the form keeps its consent text (consent) and an optional translated consent (consentT) */
+const cleanForm=f=>{try{const seen=new Set(),secs=(Array.isArray(f&&f.sections)?f.sections:[]).slice(0,12).map(sc=>{const o2={t:str(sc&&sc.t,80)||"Section",f:(Array.isArray(sc&&sc.f)?sc.f:[]).slice(0,40).map(x=>{const id=str(x&&x.id,12);if(!(CORE.includes(id)||/^c_[a-z0-9]{3,8}$/.test(id))||seen.has(id))return null;seen.add(id);const o={id,l:str(x.l,80)||"Field",y:TYPES.includes(x.y)?x.y:"text"};
+  const tl=str(x.t,120),ph=str(x.p,80);if(tl)o.t=tl;if(ph)o.p=ph;
   if(LOCK.includes(id)){o.y={name:"text",age:"number",sex:"select",ph:"phone"}[id];o.r=1;o.k=1}else if(x.r)o.r=1;
-  if(o.y==="select"){o.o=id==="sex"?["Male","Female","Other"]:lst(x.o,12,40);if(!o.o.length)o.o=["Option 1"]}return o}).filter(Boolean)}));
- return LOCK.every(k=>seen.has(k))?{sig:!!(f&&f.sig),sections:secs}:DEF_FORM}catch(e){return DEF_FORM}};
+  if(o.y==="select"){o.o=id==="sex"?["Male","Female","Other"]:lst(x.o,12,40);if(!o.o.length)o.o=["Option 1"]}return o}).filter(Boolean)};const tt=str(sc&&sc.tt,120);if(tt)o2.tt=tt;return o2});
+ return LOCK.every(k=>seen.has(k))?{sig:!!(f&&f.sig),consent:str(f.consent,1500)||SH.CONSENT_EN,consentT:str(f.consentT,3000),sections:secs}:DEF_FORM}catch(e){return DEF_FORM}};
 /* settings kept in the kv JSON; the clinic profile fields (PROF) are saved through /api/clinic/profile instead */
 const SET={phlabel:100,review:300,revmsg:600,theme:20,sigstyle:8,stamp:600,stampcol:10,stampmode:6,hdr:8,txt:8,nsize:8};
 const STATES=["Andaman and Nicobar Islands","Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chandigarh","Chhattisgarh","Dadra and Nagar Haveli and Daman and Diu","Delhi","Goa","Gujarat","Haryana","Himachal Pradesh","Jammu and Kashmir","Jharkhand","Karnataka","Kerala","Ladakh","Lakshadweep","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Puducherry","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal"];
@@ -276,7 +280,7 @@ const lst=(v,n,m)=>(Array.isArray(v)?v:[]).slice(0,n).map(x=>str(x,m)).filter(Bo
 app.put("/api/clinic",need("doctor"),A(async(q,s)=>{const b=q.body||{},o={};for(const [k,n] of Object.entries(SET))o[k]=str(b[k],n);
  for(const k of ["sig","lh"])o[k]=typeof b[k]==="string"&&b[k].length<2.8e6&&IMG.test(b[k])?b[k]:"";
  for(const k of ["opPrefix","invPrefix"])o[k]=/^[A-Za-z0-9-]{1,8}$/.test(str(b[k],8))?str(b[k],8):"";
- o.regForm=cleanForm(b.regForm);o.noteBoxes=lst(b.noteBoxes,10,60);o.meds=lst(b.meds,3000,80);o.prices=(Array.isArray(b.prices)?b.prices:[]).slice(0,300).map(x=>({n:str(x&&x.n,80),r:Math.max(0,+(x&&x.r)||0)})).filter(x=>x.n);
+ o.lang=SH.LANGS.some(x=>x[0]===b.lang)?b.lang:"";o.regForm=cleanForm(b.regForm);o.noteBoxes=lst(b.noteBoxes,10,60);o.meds=lst(b.meds,3000,80);o.prices=(Array.isArray(b.prices)?b.prices:[]).slice(0,300).map(x=>({n:str(x&&x.n,80),r:Math.max(0,+(x&&x.r)||0)})).filter(x=>x.n);
  await Q("INSERT INTO kv(k,v) VALUES($1,$2) ON CONFLICT(k) DO UPDATE SET v=excluded.v",["c"+q.u.cid+":clinic",JSON.stringify(o)]);await audit(q.u,"clinic");s.json(await clinic(q.u.cid))}));
 app.post("/api/clinic/setup",need("doctor"),profileRoute(true));
 app.put("/api/clinic/profile",need("doctor"),profileRoute(false));
@@ -300,7 +304,7 @@ app.post("/api/password",A(async(q,s)=>{const b=q.body||{},u=await one("SELECT *
 /* online registration inbox */
 app.post("/api/registrations/:id/approve",A(async(q,s)=>{const id=uid(q.params.id);
  const cid=q.u.cid,d=id&&await tx(async c=>{const r=(await c.query("DELETE FROM regs WHERE id=$1 AND cid=$2 RETURNING data",[id,cid])).rows[0];if(!r)return null;
-  const pid=await nextId(cid,"patients",(t,p)=>c.query(t,p)),d={...r.data,id:pid,date:today()};delete d.consent;if(d.sig){await c.query("INSERT INTO docs(cid,coll,id,data) VALUES($1,'sigs',$2,$3)",[cid,pid,JSON.stringify({sig:d.sig})]);d.hasSig=true;delete d.sig}
+  const pid=await nextId(cid,"patients",(t,p)=>c.query(t,p)),d={...r.data,id:pid,date:today()};delete d.consent;d.consentAt=d.consentAt||today();if(d.sig){await c.query("INSERT INTO docs(cid,coll,id,data) VALUES($1,'sigs',$2,$3)",[cid,pid,JSON.stringify({sig:d.sig})]);d.hasSig=true;delete d.sig}
   await c.query("INSERT INTO docs(cid,coll,id,data) VALUES($1,'patients',$2,$3)",[cid,pid,JSON.stringify(d)]);return d});
  if(!d)return s.status(404).json({error:"Not found"});await audit(q.u,"reg_approve",d.id);s.json(d)}));
 app.delete("/api/registrations/:id",A(async(q,s)=>{const id=uid(q.params.id);if(id)await Q("DELETE FROM regs WHERE id=$1 AND cid=$2",[id,q.u.cid]);await audit(q.u,"reg_reject",q.params.id);s.json({ok:true})}));
