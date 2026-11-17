@@ -30,7 +30,7 @@ input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--line);b
 details.dd{position:relative;display:inline-block}details.dd summary{cursor:pointer;color:var(--ok);font-weight:600;list-style:none;padding:4px 8px}details.dd summary::-webkit-details-marker{display:none}
 .menu{position:absolute;right:0;top:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:6;min-width:200px;padding:4px}.menu a{display:block;padding:8px 12px;color:inherit;text-decoration:none;border-radius:6px}.menu a:hover{background:var(--soft)}
 .bar{height:10px;border-radius:5px;background:var(--pri);min-width:2px}
-#md{position:fixed;inset:0;background:rgba(0,0,0,.5);overflow:auto;padding:20px 12px;z-index:20}#mb{max-width:640px;margin:0 auto;background:var(--card);border-radius:14px;padding:22px}#mb.wide{max-width:780px}
+#md{position:fixed;inset:0;background:rgba(0,0,0,.5);overflow:auto;padding:20px 12px;z-index:20}#mb{max-width:640px;margin:0 auto;background:var(--card);border-radius:14px;padding:22px}#mb.wide{max-width:780px}#mb.xwide{max-width:1240px}.cwrap{display:grid;grid-template-columns:330px 1fr;gap:20px;align-items:start;margin-top:14px}.cedit{border:1px solid var(--line);border-radius:12px;padding:18px;position:sticky;top:0}.cedit label{margin-top:14px}.cedit textarea{min-height:260px;line-height:1.5}.ctpl{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.ctb{background:none;border:1px solid var(--line);border-radius:8px;padding:8px 14px;font:inherit;color:inherit;cursor:pointer}.ctb.on{border-color:var(--pri);color:var(--pri);font-weight:600;box-shadow:inset 0 0 0 1px var(--pri)}#doc.cdoc{min-height:780px;padding:40px 56px;box-shadow:0 1px 6px rgba(0,0,0,.08);max-width:none}#doc .cpl{display:flex;justify-content:space-between;gap:12px;margin:26px 0 0;font-size:13px}#doc .ctt{text-align:center;letter-spacing:.06em;text-transform:uppercase;font-size:17px;margin:34px 0 22px}#doc .ctx{font-size:15px;line-height:1.95;min-height:120px}@media(max-width:900px){.cwrap{grid-template-columns:1fr}.cedit{position:static}#doc.cdoc{padding:20px;min-height:0}}
 #mb .mbar{display:flex;gap:8px;margin-bottom:12px}#doc{background:#fff;color:#111;padding:24px;border-radius:6px;font-size:13px;max-width:748px;margin:0 auto}#doc table{width:100%}#doc th,#doc td{border-bottom:1px solid #ccc;color:#111;padding:6px}#doc th{color:#444}
 #doc .rp{font-size:13px;line-height:1.45}#doc .rps{margin:0 0 22px}#doc .rpmh{margin-bottom:30px}#doc .rph{font-size:12px;letter-spacing:.7px;text-transform:uppercase;margin:0 0 8px;padding-bottom:5px;border-bottom:1.5px solid}
 #doc .rpk td{padding:6px 8px;border-bottom:1px solid #e6e6e6;vertical-align:top}#doc .rpk td.k{color:#555;width:21%}#doc .rpy td.yes{color:#b3261e;font-weight:700}#doc .rpy td.no{color:#333}
@@ -107,7 +107,7 @@ display:block;width:100%;height:170px;background:#fff;border:1px solid var(--lin
 .btn:disabled{opacity:.7;cursor:wait}#sp-msg{margin:14px 0 0}#sp-msg:empty{display:none}
 @media(max-width:1000px){.sw{grid-template-columns:1fr}.sw-p{position:static;order:-1}}@media(max-width:560px){.sg{grid-template-columns:1fr}}
 @page{size:A4;margin:12mm}
-@media print{html,body{background:#fff!important}body>*:not(#md){display:none!important}#md{position:static;background:none;padding:0}#mb{max-width:none;padding:0}.mbar{display:none!important}#doc{padding:0}}
+@media print{html,body{background:#fff!important}body>*:not(#md){display:none!important}#md{position:static;background:none;padding:0}#mb{max-width:none;padding:0}.mbar{display:none!important}#doc{padding:0}.cedit{display:none!important}.cwrap{display:block;margin:0}#doc.cdoc{box-shadow:none;min-height:0;padding:0}}
 </style></head><body class="lk">
 <header id="hd" class="hide"></header><main id="app"></main>
 <div id="md" class="hide"><div id="mb"></div></div><div id="lk"></div><div id="toast" class="hide"></div>
@@ -195,7 +195,24 @@ const repD=p=>{const F=FORM(),af=F.sections.flatMap(s=>s.f),ot=af.filter(f=>!HEA
  <div class="rps rpb"><span>Billed <b>${M(tb)}</b></span><span>Paid <b>${M(tp)}</b></span><span>Due <b class="${tb-tp>0?"due":""}">${M(tb-tp)}</b></span></div>
  <div class="rpend">${p.consentAt?`<div class="rps">${H(bi("Consent"))}${consentBlock(F)}<p class="rpm" style="margin:4px 0 0">Consent given on ${fd(p.consentAt)}</p></div>`:""}
  <div class="rpsig"><div class="rpl">${F.sig?`<div class="rpm">${bi("Patient signature")}</div>${SIGC[p.id]?`<img src="${SIGC[p.id]}" alt="">`:'<div class="rpline"></div>'}<div>${E(p.name)}</div>`:""}</div><div class="rpr">${sigHtml()}</div></div></div>${footNote()}</div>`};
-const certD=(p,o)=>dh("MEDICAL CERTIFICATE")+`<p style="margin-top:24px;line-height:1.9">This is to certify that <b>${E(p.name)}</b>, aged ${E(p.age)} years, was examined at ${E(clin())} on ${fd(o.date)}${o.dx?` and diagnosed with <b>${E(o.dx)}</b>`:""}.${o.days?` The patient is advised rest for <b>${E(o.days)} day(s)</b> from ${fd(o.from)}.`:""}</p>${o.note?`<p>${E(o.note)}</p>`:""}<p style="text-align:right"><small>Date: ${fd(td())}</small></p>${sigHtml()}`;
+/* certificate: pick a starting text, edit title and wording, see it on the letterhead as you type */
+const CTPL=[["blank","Blank"],["fly","Fit to fly"],["leave","Medical leave"],["fit","Fitness"]];let CK="fit";
+const certTpl=(k,p)=>{const d=fdl(td()),nm=p.name||"",ag=p.age?`, aged ${p.age} years,`:"",he=/^m/i.test(p.sex||"")?"He":/^f/i.test(p.sex||"")?"She":"The patient";
+ return {blank:["Medical Certificate",""],
+  fly:["Fit to Fly Certificate",`This is to certify that ${nm}${ag} was examined by me on ${d} and is found medically fit to travel by air. ${he} has no medical condition at present that prevents air travel.`],
+  leave:["Medical Certificate",`This is to certify that ${nm}${ag} was examined by me on ${d} and is advised rest for ___ days from ${d} on medical grounds. ${he} may resume normal duties after this period.`],
+  fit:["Fitness Certificate",`This is to certify that ${nm}${ag} was examined by me on ${d} and is found medically fit to resume normal activities.`]}[k]};
+const certDoc=(p,t,x)=>hdrHtml()+`<div class="cpl"><span>Patient: <b>${E(p.name)}</b>${p.age||p.sex?", "+E([p.age,(p.sex||"").charAt(0).toUpperCase()].filter(Boolean).join(" / ")):""} · ${E(p.id)}</span><span>Date: ${fdl(td())}</span></div><h3 class="ctt">${E((t||"").trim()||"Medical Certificate")}</h3><div class="ctx">${x.trim()?E(x.trim()).replace(/\n/g,"<br>"):'<span style="color:#999">Type the certificate text on the left.</span>'}</div>${sigHtml()}`;
+const certWa=(p,t,x)=>wa(p.ph,`*${clin()}*\n${(t||"Medical Certificate").trim()}\nPatient: ${p.name} (${p.id})\nDate: ${fdl(td())}\n\n${x.trim()}\n\n— ${dr()||clin()}`);
+const certOpen=id=>{const p=P(id),[t,x]=certTpl(CK,p);
+ modal(`<div class="mbar"><button class="btn" data-a="print">Print</button>${p.ph?`<a class="btn o" id="c-wa" target="_blank" rel="noopener" href="#">Send on WhatsApp</a>`:""}<button class="btn o" data-a="close">Close</button></div>
+ <div class="cwrap" data-pid="${E(id)}"><div class="cedit"><b>Start from</b><div class="ctpl">${CTPL.map(([k,l])=>`<button class="ctb${k===CK?" on":""}" data-a="ctpl" data-id="${k}">${l}</button>`).join("")}</div>
+ <label for="c-t">Title</label><input id="c-t" value="${E(t)}" maxlength="80"><label for="c-x">Certificate text</label><textarea id="c-x" rows="12">${E(x)}</textarea></div><div id="doc" class="cdoc"></div></div>`,1);$("#mb").classList.add("xwide");certPv()};
+const certPv=()=>{const w=$(".cwrap");if(!w)return;const p=P(w.dataset.pid),t=g("c-t"),x=g("c-x");$("#doc").innerHTML=certDoc(p,t,x);const a=$("#c-wa");if(a)a.href=certWa(p,t,x)};
+document.addEventListener("input",e=>{if(e.target.id==="c-t"||e.target.id==="c-x")certPv()});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-a=ctpl]");if(!b)return;const p=P($(".cwrap").dataset.pid),cur=certTpl(CK,p);
+ if(g("c-x").trim()&&g("c-x").trim()!==cur[1].trim()&&!confirm("Replace the text you have written with this template?"))return;
+ CK=b.dataset.id;const [t,x]=certTpl(CK,p);$("#c-t").value=t;$("#c-x").value=x;document.querySelectorAll(".ctb").forEach(z=>z.classList.toggle("on",z===b));certPv();$("#c-x").focus()});
 
 /* routing and views */
 const hdr=()=>{const n=clin();$("#hd").classList.remove("hide");$("#hd").innerHTML=`<a class="brand" href="#/">${S.clinic.logo?`<span class="logo" style="background:#fff;overflow:hidden;border:1px solid var(--line)"><img src="${S.clinic.logo}" alt="" style="max-width:100%;max-height:100%"></span>`:`<span class="logo">${E(n.replace(/[^A-Za-z]/g,"").slice(0,2).toUpperCase()||"OP")}</span>`}<span><b>${E(n.toUpperCase())}</b><small>${E(dr()||ME.name)}</small></span></a><nav><a href="#/appointments">Appointments</a><a href="#/analytics">Analytics</a>${isDoc()?'<a href="#/settings">Settings</a>':""}<a href="#/help">Help</a><button data-a="refresh" title="Refresh">↻</button><button data-a="out">Logout</button></nav>`};
@@ -734,8 +751,7 @@ document.addEventListener("click",async e=>{const op=document.querySelector("det
  else if(a==="vb"){const b=S.bills.find(z=>z.no===id);show(bD(b),bW(b))}
  else if(a==="pay"){const b=S.bills.find(z=>z.no===id),v=Math.min(+$("#py"+id).value||0,due(b));if(v<=0)return flash("Enter an amount to collect");b.pays.push({d:td(),a:v,m:"Cash"});await put("bills",b);render();flash("Payment recorded")}
  else if(a==="prep"){if(P(id).hasSig)await loadSig(id);show(repD(P(id)))}
- else if(a==="cert")modal(`<h2>Medical certificate · ${E(PN(id))}</h2><div class="g">${fld("m-d","Examined on",td(),"date")}${fld("m-f","Rest from",td(),"date")}${fld("m-n","Days of rest","","number",'min="0"')}${fld("m-dx","Diagnosis (optional)")}</div><div style="margin-top:12px">${tav("m-r","Remarks (optional)")}</div><div class="row"><button class="btn" data-a="certgo" data-id="${id}">Preview</button><button class="btn o" data-a="close">Cancel</button></div>`);
- else if(a==="certgo")show(certD(P(id),{date:g("m-d"),from:g("m-f"),days:g("m-n"),dx:g("m-dx"),note:g("m-r")}));
+ else if(a==="cert")certOpen(id);
  else if(a==="abook"){const pid=g("a-p"),d=g("a-d");if(!pid||!d)return flash("Select a patient and a date");S.appts.push(await post("appts",{pid,date:d,time:g("a-t"),note:g("a-n"),st:"Booked"}));render();flash("Appointment booked")}
  else if(a==="adone"||a==="acancel"){const x=S.appts.find(z=>z.id===id);x.st=a==="adone"?"Done":"Cancelled";await put("appts",x);render()}
  else if(a==="reload")location.reload();
