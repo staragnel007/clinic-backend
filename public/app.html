@@ -30,7 +30,7 @@ input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--line);b
 details.dd{position:relative;display:inline-block}details.dd summary{cursor:pointer;color:var(--ok);font-weight:600;list-style:none;padding:4px 8px}details.dd summary::-webkit-details-marker{display:none}
 .menu{position:absolute;right:0;top:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:6;min-width:200px;padding:4px}.menu a{display:block;padding:8px 12px;color:inherit;text-decoration:none;border-radius:6px}.menu a:hover{background:var(--soft)}
 .bar{height:10px;border-radius:5px;background:var(--pri);min-width:2px}
-#md{position:fixed;inset:0;background:rgba(0,0,0,.5);overflow:auto;padding:20px 12px;z-index:20}#mb{max-width:640px;margin:0 auto;background:var(--card);border-radius:14px;padding:22px}#mb.wide{max-width:780px}#mb.xwide{max-width:1240px}.cwrap{display:grid;grid-template-columns:330px 1fr;gap:20px;align-items:start;margin-top:14px}.cedit{border:1px solid var(--line);border-radius:12px;padding:18px;position:sticky;top:0}.cedit label{margin-top:14px}.cedit textarea{min-height:260px;line-height:1.5}.ctpl{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.ctb{background:none;border:1px solid var(--line);border-radius:8px;padding:8px 14px;font:inherit;color:inherit;cursor:pointer}.ctb.on{border-color:var(--pri);color:var(--pri);font-weight:600;box-shadow:inset 0 0 0 1px var(--pri)}#doc.cdoc{min-height:780px;padding:40px 56px;box-shadow:0 1px 6px rgba(0,0,0,.08);max-width:none}#doc .cpl{display:flex;justify-content:space-between;gap:12px;margin:26px 0 0;font-size:13px}#doc .ctt{text-align:center;letter-spacing:.06em;text-transform:uppercase;font-size:17px;margin:34px 0 22px}#doc .ctx{font-size:15px;line-height:1.95;min-height:120px}@media(max-width:900px){.cwrap{grid-template-columns:1fr}.cedit{position:static}#doc.cdoc{padding:20px;min-height:0}}
+#md{position:fixed;inset:0;background:rgba(0,0,0,.5);overflow:auto;padding:20px 12px;z-index:20}#mb{max-width:640px;margin:0 auto;background:var(--card);border-radius:14px;padding:22px}#mb.wide{max-width:780px}#doc.pdfbox{position:absolute;left:-10000px;top:0;width:794px;max-width:none;padding:44px 52px;border-radius:0;box-sizing:border-box;margin:0}.tapbox{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:100}.tapbox>div{background:var(--card);border-radius:14px;padding:22px;text-align:center;max-width:320px}.tapbox p{margin:0 0 14px;font-weight:600}#mb.xwide{max-width:1240px}.cwrap{display:grid;grid-template-columns:330px 1fr;gap:20px;align-items:start;margin-top:14px}.cedit{border:1px solid var(--line);border-radius:12px;padding:18px;position:sticky;top:0}.cedit label{margin-top:14px}.cedit textarea{min-height:260px;line-height:1.5}.ctpl{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.ctb{background:none;border:1px solid var(--line);border-radius:8px;padding:8px 14px;font:inherit;color:inherit;cursor:pointer}.ctb.on{border-color:var(--pri);color:var(--pri);font-weight:600;box-shadow:inset 0 0 0 1px var(--pri)}#doc.cdoc{min-height:780px;padding:40px 56px;box-shadow:0 1px 6px rgba(0,0,0,.08);max-width:none}#doc .cpl{display:flex;justify-content:space-between;gap:12px;margin:26px 0 0;font-size:13px}#doc .ctt{text-align:center;letter-spacing:.06em;text-transform:uppercase;font-size:17px;margin:34px 0 22px}#doc .ctx{font-size:15px;line-height:1.95;min-height:120px}@media(max-width:900px){.cwrap{grid-template-columns:1fr}.cedit{position:static}#doc.cdoc{padding:20px;min-height:0}}
 #mb .mbar{display:flex;gap:8px;margin-bottom:12px}#doc{background:#fff;color:#111;padding:24px;border-radius:6px;font-size:13px;max-width:748px;margin:0 auto}#doc table{width:100%}#doc th,#doc td{border-bottom:1px solid #ccc;color:#111;padding:6px}#doc th{color:#444}
 #doc .rp{font-size:13px;line-height:1.45}#doc .rps{margin:0 0 22px}#doc .rpmh{margin-bottom:30px}#doc .rph{font-size:12px;letter-spacing:.7px;text-transform:uppercase;margin:0 0 8px;padding-bottom:5px;border-bottom:1.5px solid}
 #doc .rpk td{padding:6px 8px;border-bottom:1px solid #e6e6e6;vertical-align:top}#doc .rpk td.k{color:#555;width:21%}#doc .rpy td.yes{color:#b3261e;font-weight:700}#doc .rpy td.no{color:#333}
@@ -107,7 +107,7 @@ display:block;width:100%;height:170px;background:#fff;border:1px solid var(--lin
 .btn:disabled{opacity:.7;cursor:wait}#sp-msg{margin:14px 0 0}#sp-msg:empty{display:none}
 @media(max-width:1000px){.sw{grid-template-columns:1fr}.sw-p{position:static;order:-1}}@media(max-width:560px){.sg{grid-template-columns:1fr}}
 @page{size:A4;margin:12mm}
-@media print{html,body{background:#fff!important}body>*:not(#md){display:none!important}#md{position:static;background:none;padding:0}#mb{max-width:none;padding:0}.mbar{display:none!important}#doc{padding:0}.cedit{display:none!important}.cwrap{display:block;margin:0}#doc.cdoc{box-shadow:none;min-height:0;padding:0}}
+@media print{html,body{background:#fff!important}body>*:not(#md){display:none!important}#md{position:static;background:none;padding:0}#mb{max-width:none;padding:0}.mbar{display:none!important}.tapbox,.pdfbox{display:none!important}#doc{padding:0}.cedit{display:none!important}.cwrap{display:block;margin:0}#doc.cdoc{box-shadow:none;min-height:0;padding:0}}
 </style></head><body class="lk">
 <header id="hd" class="hide"></header><main id="app"></main>
 <div id="md" class="hide"><div id="mb"></div></div><div id="lk"></div><div id="toast" class="hide"></div>
@@ -136,7 +136,7 @@ const selv=(id,l,o,v)=>`<div><label>${l}</label><select id="${id}">${o.map(x=>`<
 const bt=(a,id,t,c="s",x="")=>`<button class="btn ${c}" data-a="${a}" data-id="${id}" ${x}>${t}</button>`,rows=(a,e,n=5)=>a.length?a.join(""):`<tr><td colspan="${n}" class="mut">${e}</td></tr>`;
 const BG=["Unknown","A+","A-","B+","B-","AB+","AB-","O+","O-"],g=i=>($("#"+i)?$("#"+i).value.trim():""),psel=v=>`<option value="">Select patient</option>`+S.patients.map(p=>`<option value="${p.id}"${p.id===v?" selected":""}>${p.id} – ${E(p.name)} (${E(p.ph)})</option>`).join("");
 const modal=(h,w)=>{$("#mb").className=w?"wide":"";$("#mb").innerHTML=h;$("#md").classList.remove("hide")},closeM=()=>$("#md").classList.add("hide");
-const show=(h,w)=>modal(`<div class="mbar"><button class="btn" data-a="print">Print</button>${w?`<a class="btn o" target="_blank" rel="noopener" href="${w}">Send on WhatsApp</a>`:""}<button class="btn o" data-a="close">Close</button></div><div id="doc">${h}</div>`,1);
+const show=(h,s)=>{SEND=s||null;modal(`<div class="mbar"><button class="btn" data-a="print">Print</button>${s?`<button class="btn o" data-a="wapdf">Send on WhatsApp</button>`:""}<button class="btn o" data-a="close">Close</button></div><div id="doc">${h}</div>`,1);};
 
 /* printable documents */
 let TC="#1a5c3f";const DEFREV="Hi {name},\n\nThank you for visiting our clinic. We'd love to hear your feedback! Please take a moment to leave us a Google review:\n\n{link}";
@@ -203,12 +203,11 @@ const certTpl=(k,p)=>{const d=fdl(td()),nm=p.name||"",ag=p.age?`, aged ${p.age} 
   leave:["Medical Certificate",`This is to certify that ${nm}${ag} was examined by me on ${d} and is advised rest for ___ days from ${d} on medical grounds. ${he} may resume normal duties after this period.`],
   fit:["Fitness Certificate",`This is to certify that ${nm}${ag} was examined by me on ${d} and is found medically fit to resume normal activities.`]}[k]};
 const certDoc=(p,t,x)=>hdrHtml()+`<div class="cpl"><span>Patient: <b>${E(p.name)}</b>${p.age||p.sex?", "+E([p.age,(p.sex||"").charAt(0).toUpperCase()].filter(Boolean).join(" / ")):""} · ${E(p.id)}</span><span>Date: ${fdl(td())}</span></div><h3 class="ctt">${E((t||"").trim()||"Medical Certificate")}</h3><div class="ctx">${x.trim()?E(x.trim()).replace(/\n/g,"<br>"):'<span style="color:#999">Type the certificate text on the left.</span>'}</div>${sigHtml()}`;
-const certWa=(p,t,x)=>wa(p.ph,`*${clin()}*\n${(t||"Medical Certificate").trim()}\nPatient: ${p.name} (${p.id})\nDate: ${fdl(td())}\n\n${x.trim()}\n\n— ${dr()||clin()}`);
-const certOpen=id=>{const p=P(id),[t,x]=certTpl(CK,p);
- modal(`<div class="mbar"><button class="btn" data-a="print">Print</button>${p.ph?`<a class="btn o" id="c-wa" target="_blank" rel="noopener" href="#">Send on WhatsApp</a>`:""}<button class="btn o" data-a="close">Close</button></div>
+const certOpen=id=>{const p=P(id),[t,x]=certTpl(CK,p);SEND={pid:id,kind:"Certificate",ref:"",date:td()};
+ modal(`<div class="mbar"><button class="btn" data-a="print">Print</button><button class="btn o" data-a="wapdf">Send on WhatsApp</button><button class="btn o" data-a="close">Close</button></div>
  <div class="cwrap" data-pid="${E(id)}"><div class="cedit"><b>Start from</b><div class="ctpl">${CTPL.map(([k,l])=>`<button class="ctb${k===CK?" on":""}" data-a="ctpl" data-id="${k}">${l}</button>`).join("")}</div>
  <label for="c-t">Title</label><input id="c-t" value="${E(t)}" maxlength="80"><label for="c-x">Certificate text</label><textarea id="c-x" rows="12">${E(x)}</textarea></div><div id="doc" class="cdoc"></div></div>`,1);$("#mb").classList.add("xwide");certPv()};
-const certPv=()=>{const w=$(".cwrap");if(!w)return;const p=P(w.dataset.pid),t=g("c-t"),x=g("c-x");$("#doc").innerHTML=certDoc(p,t,x);const a=$("#c-wa");if(a)a.href=certWa(p,t,x)};
+const certPv=()=>{const w=$(".cwrap");if(!w)return;const p=P(w.dataset.pid),t=g("c-t"),x=g("c-x");$("#doc").innerHTML=certDoc(p,t,x)};
 document.addEventListener("input",e=>{if(e.target.id==="c-t"||e.target.id==="c-x")certPv()});
 document.addEventListener("click",e=>{const b=e.target.closest("[data-a=ctpl]");if(!b)return;const p=P($(".cwrap").dataset.pid),cur=certTpl(CK,p);
  if(g("c-x").trim()&&g("c-x").trim()!==cur[1].trim()&&!confirm("Replace the text you have written with this template?"))return;
@@ -237,8 +236,8 @@ function plist(){const q=F.q.toLowerCase(),a=S.patients.filter(p=>(!q||(p.name+p
 function pat(id,tab){const p=P(id);if(!p){location.hash="#/";return}tab=tab||"reg";const bl=S.bills.filter(b=>b.pid===id),tb=[["reg","Diagnosis"],...(isDoc()?[["rx","Prescription"]]:[]),["rep","Reports"],["inv",`Invoice (${bl.length})`]];
  $("#app").innerHTML=`<div class="crumb"><a href="#/">${UI.home}<span>Dashboard</span></a> › Patient</div><div class="phead"><div><h1>${E(p.name)} <span class="chip">${p.id}</span></h1><div class="mut">${E(PH(p.ph))} | ${E(p.sex)}, ${E(p.age)} years</div>${alertsH(p)}</div><div class="actbar"><button class="btn o" data-a="prep" data-id="${id}">📄 Patient Report</button><button class="btn o" data-a="cert" data-id="${id}">📜 Certificate</button>${S.clinic.review&&p.ph?`<a class="btn o" target="_blank" rel="noopener" href="${wa(p.ph,(S.clinic.revmsg||DEFREV).replace("{name}",p.name).replace("{link}",S.clinic.review))}">Ask for review</a>`:""}</div></div>
  <div class="tabs ptabs">${tb.map(t=>`<a class="${t[0]===tab?"on":""}" href="#/p/${id}/${t[0]}">${t[1]}</a>`).join("")}<button class="btn o" data-a="pedit" data-id="${id}">✎ Edit Patient</button></div><div id="tab"></div>`;
- if(tab==="rx"&&isDoc()){const L=rxOf(id),r=L[L.length-1],w=r&&rxW(r),ol=L.slice(0,-1).reverse();
-  $("#tab").innerHTML=`<div class="card rxc"><div class="between rxh"><h2>Medicines prescribed</h2><span class="rxb">${r?`${bt("vrx",r.no,"Print","o")}${w?`<a class="btn o" target="_blank" rel="noopener" href="${w}">Send on WhatsApp</a>`:""}`:""}${bt("rxnew",id,"New Prescription","")}${r?`<details class="dd rxp"><summary class="btn o">Edit previous prescription ▾</summary><div class="menu">${[...L].reverse().map(x=>`<button class="mi" data-a="rxedit" data-id="${x.no}"><b>${fdl(x.date)}</b><span class="mut">${E(x.no)} · ${x.meds.length} medicine${x.meds.length===1?"":"s"}</span></button>`).join("")}</div></details>`:""}${bt("rxtext",id,"Write as text","o")}</span></div>
+ if(tab==="rx"&&isDoc()){const L=rxOf(id),r=L[L.length-1],ol=L.slice(0,-1).reverse();
+  $("#tab").innerHTML=`<div class="card rxc"><div class="between rxh"><h2>Medicines prescribed</h2><span class="rxb">${r?`${bt("vrx",r.no,"Print","o")}<button class="btn o" data-a="wapdf" data-rx="${r.no}">Send on WhatsApp</button>`:""}${bt("rxnew",id,"New Prescription","")}${r?`<details class="dd rxp"><summary class="btn o">Edit previous prescription ▾</summary><div class="menu">${[...L].reverse().map(x=>`<button class="mi" data-a="rxedit" data-id="${x.no}"><b>${fdl(x.date)}</b><span class="mut">${E(x.no)} · ${x.meds.length} medicine${x.meds.length===1?"":"s"}</span></button>`).join("")}</div></details>`:""}${bt("rxtext",id,"Write as text","o")}</span></div>
   ${r?`<ol class="rxl">${r.meds.map(m=>{const x=[m.d,m.f,m.u,m.i].filter(Boolean).join(" · ");return `<li><span>${E(m.n)}</span>${x?` <span class="mut">${E(x)}</span>`:""}</li>`}).join("")}</ol><div class="mut rxs">${E(r.no)} · ${fdl(r.date)}${r.dx?` · Diagnosis: ${E(r.dx)}`:""}${r.f?` · Follow-up: ${fd(r.f)}`:""}</div>
   <div class="rxn2"><div class="between"><h3>Notes</h3>${bt("rxnote",r.no,"Edit","o")}</div><div id="rx-nb">${r.a?`<p class="rxnt">${E(r.a).replace(/\n/g,"<br>")}</p>`:'<p class="mut">Nothing written yet. Notes print under the medicines.</p>'}</div></div>`:'<p class="mut rxl">No medicines prescribed yet.</p>'}</div>
   ${ol.length?`<div class="card"><h3 class="gh" style="margin-top:0">Earlier prescriptions</h3><div class="tbl"><table>${rows(ol.map(x=>`<tr><td class="mono">${x.no}</td><td>${fdl(x.date)}</td><td>${E(x.meds.map(m=>m.n).join(", "))}</td><td class="r nw">${bt("rxedit",x.no,"Edit")} ${bt("vrx",x.no,"View / Print")}</td></tr>`),"")}</table></div></div>`:""}`}
@@ -708,6 +707,39 @@ document.addEventListener("click",async e=>{const t=e.target.closest("[data-a=ru
   catch(er){if(w)w.close();flash(er.message)}finally{t.disabled=false}}});
 document.addEventListener("click",e=>{const t=e.target.closest("[data-a=rcopy]");if(!t)return;navigator.clipboard.writeText(t.dataset.u).then(()=>flash("Link copied"),()=>prompt("Copy this link",t.dataset.u))});
 
+/* Send on WhatsApp with the PDF itself.
+   Phone/tablet: the PDF file goes to the share sheet and the doctor picks WhatsApp.
+   Desktop: the PDF is stored for 3 days and WhatsApp opens with a private download link. */
+let SEND=null;
+const loadJs=src=>new Promise((ok,no)=>{if(document.querySelector(`script[src="${src}"]`)&&loadJs[src])return ok();const s=document.createElement("script");s.src=src;s.onload=()=>{loadJs[src]=1;ok()};s.onerror=()=>no(new Error("Could not load the PDF maker. Check your internet."));document.head.appendChild(s)});
+const pdfOf=async html=>{await Promise.all([loadJs("/vendor/jspdf.js"),loadJs("/vendor/html2canvas.js")]);
+ const box=document.createElement("div");box.id="doc";box.className="pdfbox";box.innerHTML=html;document.body.appendChild(box);
+ try{await Promise.all([...box.querySelectorAll("img")].map(i=>i.complete?0:new Promise(r=>{i.onload=i.onerror=r})));
+  const c=await html2canvas(box,{scale:2,backgroundColor:"#ffffff",logging:false}),{jsPDF}=window.jspdf,pdf=new jsPDF({unit:"mm",format:"a4",compress:true}),W=210,H=297,ph=Math.floor(c.width*H/W);
+  for(let y=0,i=0;y<c.height-4;y+=ph,i++){const h=Math.min(ph,c.height-y),pc=document.createElement("canvas");pc.width=c.width;pc.height=h;const x=pc.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,pc.width,h);x.drawImage(c,0,y,c.width,h,0,0,c.width,h);
+   if(i)pdf.addPage();pdf.addImage(pc.toDataURL("image/jpeg",.9),"JPEG",0,0,W,h*W/c.width)}
+  return pdf.output("blob")}finally{box.remove()}};
+/* a second tap when the browser needs a fresh click before sharing or opening WhatsApp */
+const tapBox=(label,fn)=>{const d=document.createElement("div");d.className="tapbox";d.innerHTML=`<div><p>The PDF is ready.</p><button class="btn">${label}</button> <button class="btn o">Cancel</button></div>`;document.body.appendChild(d);
+ const [go,no]=d.querySelectorAll("button");go.onclick=()=>{d.remove();fn()};no.onclick=()=>d.remove();go.focus()};
+const sendPdf=async(s,html,btn)=>{const p=P(s.pid)||{},dt=s.date||td(),nm=`${s.kind.replace(/\s+/g,"-")}-${(s.ref||s.pid).replace(/[^\w-]/g,"")}-${dt}.pdf`,
+  head=`${clin()}: Your ${s.kind==="Patient report"?"patient report":s.kind.toLowerCase()}${s.ref&&s.ref!==s.pid?" "+s.ref:""} dated ${fdl(dt)}.`,
+  touch=matchMedia("(pointer:coarse)").matches&&!!navigator.canShare;let w=null;
+ if(!touch){if(!p.ph)return flash("Add the patient's mobile number to send on WhatsApp");w=window.open("","_blank");if(w)w.document.write('<p style="font:16px system-ui;padding:24px">Preparing the PDF…</p>')}
+ const old=btn.innerHTML;btn.disabled=true;btn.textContent="Preparing PDF…";
+ try{const blob=await pdfOf(html),file=new File([blob],nm,{type:"application/pdf"});
+  if(touch&&navigator.canShare({files:[file]})){const share=()=>navigator.share({files:[file],text:head}).catch(e=>{if(e.name!=="AbortError")flash(e.message)});
+   try{await navigator.share({files:[file],text:head})}catch(e){if(e.name==="NotAllowedError")tapBox("Share PDF on WhatsApp",share);else if(e.name!=="AbortError")throw e}return}
+  if(!p.ph){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=nm;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4e3);return flash("No mobile number for this patient, so the PDF was downloaded")}
+  const data=await new Promise((ok,no)=>{const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.onerror=()=>no(new Error("Could not read the PDF"));fr.readAsDataURL(blob)});
+  const r=await api("POST","/api/shared",{pid:s.pid,kind:s.kind,ref:s.ref||"",name:nm,data}),href=wa(p.ph,`${head}\n\nDownload PDF: ${r.url}\n(This link works for ${r.days} days.)`);
+  if(w)w.location=href;else tapBox("Open WhatsApp",()=>window.open(href,"_blank"));flash("WhatsApp opened with the PDF link")}
+ catch(e){if(w)w.close();flash(e.message||"Could not make the PDF")}finally{btn.disabled=false;btn.innerHTML=old}};
+const rxS=r=>({pid:r.pid,kind:"Prescription",ref:r.no,date:r.date}),bS=b=>({pid:b.pid,kind:"Invoice",ref:b.no,date:b.date});
+document.addEventListener("click",e=>{const t=e.target.closest("[data-a=wapdf]");if(!t||t.disabled)return;
+ if(t.dataset.rx){const r=S.rx.find(x=>x.no===t.dataset.rx);if(r)sendPdf(rxS(r),rxD(r),t);return}
+ if(!SEND)return;const cw=$(".cwrap");sendPdf(SEND,cw?certDoc(P(cw.dataset.pid),g("c-t"),g("c-x")):$("#doc").innerHTML,t)});
+
 /* actions */
 async function enter(){const d=await api("GET","/api/data");S={...S,...d};ME=d.me;$("#lk").classList.remove("on");document.body.classList.remove("lk");idle();
  const want=ME.setup?"/":"/setup-clinic";if(location.pathname!==want)history.replaceState(null,"",want+(ME.setup?location.hash:""));render()}
@@ -736,7 +768,7 @@ document.addEventListener("click",async e=>{const op=document.querySelector("det
  else if(a==="vnew")visitForm(id);else if(a==="vedit")visitForm(id,t.dataset.v);else if(a==="vsave")await vsave(id,t.dataset.v);
  else if(a==="rxnew")rxForm(id);else if(a==="addm"){meds.push({n:"",d:"",f:"",u:"",i:""});rm()}else if(a==="rmm"){meds.splice(id,1);rm()}
  else if(a==="rxsave"){const ms=meds.filter(m=>m.n.trim());if(!ms.length)return flash("Add at least one medicine");const no=t.dataset.no,o=no&&S.rx.find(x=>x.no===no);
-  if(o){const r=await put("rx",{...o,date:g("x-d")||o.date,meds:ms});S.rx[S.rx.indexOf(o)]=r;closeM();render();flash("Prescription saved")}else{const r=await post("rx",{pid:id,date:g("x-d")||td(),meds:ms});S.rx.push(r);render();show(rxD(r),rxW(r))}}
+  if(o){const r=await put("rx",{...o,date:g("x-d")||o.date,meds:ms});S.rx[S.rx.indexOf(o)]=r;closeM();render();flash("Prescription saved")}else{const r=await post("rx",{pid:id,date:g("x-d")||td(),meds:ms});S.rx.push(r);render();show(rxD(r),rxS(r))}}
  else if(a==="rxtext")rxText(id);
  else if(a==="rxtsave"){const ms=g("t-x").split("\n").map(x=>x.trim()).filter(Boolean).slice(0,60).map(txtMed);if(!ms.length)return flash("Write at least one medicine");const no=t.dataset.no,o=no&&S.rx.find(x=>x.no===no);
   if(o){const r=await put("rx",{...o,date:g("t-d")||o.date,meds:ms});S.rx[S.rx.indexOf(o)]=r}else S.rx.push(await post("rx",{pid:id,date:g("t-d")||td(),meds:ms}));closeM();render();flash("Prescription saved")}
@@ -744,13 +776,13 @@ document.addEventListener("click",async e=>{const op=document.querySelector("det
  else if(a==="rxnote"){const b=$("#rx-nb");b.innerHTML=`<textarea id="rx-nt" style="min-height:100px" placeholder="e.g. Avoid driving if drowsy. Review after 2 weeks.">${E((S.rx.find(x=>x.no===id)||{}).a||"")}</textarea><div class="row">${bt("rxnsave",id,"Save notes","")}${bt("rxncan",id,"Cancel","o")}</div>`;$("#rx-nt").focus()}
  else if(a==="rxncan")render();
  else if(a==="rxnsave"){const o=S.rx.find(x=>x.no===id),r=await put("rx",{...o,a:g("rx-nt").trim()});S.rx[S.rx.indexOf(o)]=r;render();flash("Notes saved")}
- else if(a==="vrx"){const r=S.rx.find(z=>z.no===id);show(rxD(r),rxW(r))}
+ else if(a==="vrx"){const r=S.rx.find(z=>z.no===id);show(rxD(r),rxS(r))}
  else if(a==="invnew")invForm(id);else if(a==="addi"){items.push({n:"",q:1,r:""});ri()}else if(a==="rmi"){items.splice(id,1);ri()}
  else if(a==="invsave"){const its=items.filter(i=>i.n.trim()&&i.r!=="").map(i=>({n:i.n,q:+i.q||1,r:+i.r}));if(!its.length)return flash("Add a priced item");const s=its.reduce((x,i)=>x+i.q*i.r,0),d=Math.min(+g("b-ds")||0,s),tt=s-d,rc=g("b-r")===""?tt:Math.min(+g("b-r"),tt),dt=g("b-d")||td();
-  const b=await post("bills",{pid:id,date:dt,items:its,s,d,t:tt,pays:rc>0?[{d:dt,a:rc,m:g("b-m")}]:[]});S.bills.push(b);render();show(bD(b),bW(b))}
- else if(a==="vb"){const b=S.bills.find(z=>z.no===id);show(bD(b),bW(b))}
+  const b=await post("bills",{pid:id,date:dt,items:its,s,d,t:tt,pays:rc>0?[{d:dt,a:rc,m:g("b-m")}]:[]});S.bills.push(b);render();show(bD(b),bS(b))}
+ else if(a==="vb"){const b=S.bills.find(z=>z.no===id);show(bD(b),bS(b))}
  else if(a==="pay"){const b=S.bills.find(z=>z.no===id),v=Math.min(+$("#py"+id).value||0,due(b));if(v<=0)return flash("Enter an amount to collect");b.pays.push({d:td(),a:v,m:"Cash"});await put("bills",b);render();flash("Payment recorded")}
- else if(a==="prep"){if(P(id).hasSig)await loadSig(id);show(repD(P(id)))}
+ else if(a==="prep"){if(P(id).hasSig)await loadSig(id);show(repD(P(id)),{pid:id,kind:"Patient report",ref:id,date:td()})}
  else if(a==="cert")certOpen(id);
  else if(a==="abook"){const pid=g("a-p"),d=g("a-d");if(!pid||!d)return flash("Select a patient and a date");S.appts.push(await post("appts",{pid,date:d,time:g("a-t"),note:g("a-n"),st:"Booked"}));render();flash("Appointment booked")}
  else if(a==="adone"||a==="acancel"){const x=S.appts.find(z=>z.id===id);x.st=a==="adone"?"Done":"Cancelled";await put("appts",x);render()}

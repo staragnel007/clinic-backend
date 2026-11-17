@@ -27,7 +27,9 @@ UPDATE users SET trial_end=now()+interval '14 days' WHERE trial_end IS NULL AND 
  /* patient reports (PDF or photo) and the WhatsApp upload links */
  await Q(`CREATE TABLE IF NOT EXISTS reports(id BIGSERIAL PRIMARY KEY,cid INTEGER NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,pid TEXT NOT NULL,kind TEXT NOT NULL,name TEXT NOT NULL,mime TEXT NOT NULL,size INTEGER NOT NULL,data BYTEA NOT NULL,src TEXT NOT NULL DEFAULT 'clinic',uid INTEGER,created TIMESTAMPTZ NOT NULL DEFAULT now());
 CREATE INDEX IF NOT EXISTS reports_cid_pid ON reports(cid,pid);
-CREATE TABLE IF NOT EXISTS report_links(th TEXT PRIMARY KEY,cid INTEGER NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,pid TEXT NOT NULL,kind TEXT NOT NULL,exp TIMESTAMPTZ NOT NULL,created TIMESTAMPTZ NOT NULL DEFAULT now())`);
+CREATE TABLE IF NOT EXISTS report_links(th TEXT PRIMARY KEY,cid INTEGER NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,pid TEXT NOT NULL,kind TEXT NOT NULL,exp TIMESTAMPTZ NOT NULL,created TIMESTAMPTZ NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS shared_docs(th TEXT PRIMARY KEY,cid INTEGER NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,pid TEXT NOT NULL,kind TEXT NOT NULL,ref TEXT,name TEXT NOT NULL,data BYTEA NOT NULL,exp TIMESTAMPTZ NOT NULL,created TIMESTAMPTZ NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS shared_docs_exp ON shared_docs(exp)`);
  /* one-time move from the single-clinic layout: everything that exists becomes clinic 1 */
  await tx(async c=>{await c.query("SELECT pg_advisory_xact_lock(7002)");if((await c.query("SELECT 1 FROM kv WHERE k='schema' AND v='2'")).rowCount)return;
   if((await c.query("SELECT 1 FROM users WHERE cid IS NULL UNION ALL SELECT 1 FROM docs WHERE cid IS NULL UNION ALL SELECT 1 FROM regs WHERE cid IS NULL LIMIT 1")).rowCount){
@@ -90,6 +92,7 @@ app.use((q,s,n)=>{s.set({"Content-Security-Policy":"default-src 'self'; script-s
 app.use(["/api/clinic","/api/import"],express.json({limit:"9mb"}));
 app.use("/api/public/register",express.json({limit:"400kb"}));
 app.use(["/api/reports","/api/public/report-link"],express.json({limit:"6mb"}));
+app.use("/api/shared",express.json({limit:"7mb"}));
 app.use(express.json({limit:"200kb"}));
 const APP=path.join(__dirname,"public/app.html");
 /* signed-in users whose clinic is not set up always land on /setup-clinic, and only they can open it */
@@ -100,6 +103,8 @@ app.get(["/signup","/forgot","/reset"],(q,s)=>s.set("Cache-Control","no-store").
 app.get("/medpacks.js",(q,s)=>s.sendFile(path.join(__dirname,"public/medpacks.js")));
 app.get("/pricepacks.js",(q,s)=>s.sendFile(path.join(__dirname,"public/pricepacks.js")));
 app.get("/shared.js",(q,s)=>s.sendFile(path.join(__dirname,"public/shared.js")));
+app.get("/vendor/jspdf.js",(q,s)=>s.set("Cache-Control","public, max-age=604800").sendFile(require.resolve("jspdf/dist/jspdf.umd.min.js")));
+app.get("/vendor/html2canvas.js",(q,s)=>s.set("Cache-Control","public, max-age=604800").sendFile(require.resolve("html2canvas/dist/html2canvas.min.js")));
 app.get("/qrcode.js",(q,s)=>s.sendFile(require.resolve("qrcode-generator/qrcode.js")));
 app.get(["/register","/register/:slug"],A(async(q,s)=>{const sl=q.params.slug||"",cid=await bySlug(sl);if(!cid)return s.status(404).type("text").send("This registration link is not valid. Please ask the clinic for a new one.");
  const c=await clinic(cid),nm=E(c.name||"Clinic");
@@ -147,6 +152,14 @@ app.post("/api/public/report-link/:t",A(async(q,s)=>{if(limited("rup:"+q.ip,30,3
  if(!await one("SELECT 1 FROM docs WHERE cid=$1 AND coll='patients' AND id=$2",[l.cid,l.pid]))return s.status(404).json({error:"This upload link is no longer valid."});
  const f=rFile(q.body||{});if(f.err)return s.status(400).json({error:f.err});
  await Q("INSERT INTO reports(cid,pid,kind,name,mime,size,data,src) VALUES($1,$2,$3,$4,$5,$6,$7,'patient')",[l.cid,l.pid,rKind((q.body||{}).kind||l.kind),f.name,f.mime,f.buf.length,f.buf]);s.json({ok:true,left:Math.max(0,RLINK_MAX-l.used-1)})}));
+
+/* PDFs sent on WhatsApp as a link: anyone with the link can open it for 3 days, then it is deleted */
+const SKINDS=["Prescription","Invoice","Certificate","Patient report"],SMAX=5*1024*1024,SDAYS=3;
+app.get("/d/:t",A(async(q,s)=>{s.set({"Cache-Control":"no-store","Referrer-Policy":"no-referrer","X-Robots-Tag":"noindex"});
+ if(limited("dl:"+q.ip,120,36e5))return s.status(429).type("text").send("Too many requests. Please try again later.");
+ const t=q.params.t,r=/^[a-f0-9]{48}$/.test(t)?await one("SELECT name,data FROM shared_docs WHERE th=$1 AND exp>now()",[sha(t)]):null;
+ if(!r)return s.status(404).type("text").send("This link has expired or is not valid. Please ask the clinic to send the document again.");
+ s.removeHeader("Content-Security-Policy");s.set({"Content-Type":"application/pdf","Content-Disposition":`inline; filename="${r.name.replace(/[^\x20-\x7e]/g,"_").replace(/"/g,"")}"`,"X-Content-Type-Options":"nosniff"}).send(r.data)}));
 
 /* auth */
 const sameStr=(a,b)=>crypto.timingSafeEqual(crypto.createHash("sha256").update(String(a)).digest(),crypto.createHash("sha256").update(String(b)).digest());
@@ -269,7 +282,7 @@ app.delete("/api/admin/clinics/:id",adm,A(async(q,s)=>{const id=uid(q.params.id)
 app.use("/api",A(async(q,s,n)=>{q.u=await who(q);q.u?n():s.status(401).json({error:"Please sign in"})}));
 const need=r=>(q,s,n)=>q.u.role===r?n():s.status(403).json({error:"Only a doctor can do this"});
 /* until clinic setup is finished, nothing can be created or changed except the clinic profile itself */
-const GATED=/^\/(patients|appts|rx|bills|visits|registrations|import|users|sig|reports)(\/|$)/;
+const GATED=/^\/(patients|appts|rx|bills|visits|registrations|import|users|sig|reports|shared)(\/|$)/;
 app.use("/api",(q,s,n)=>q.u.setup||q.method==="GET"||!GATED.test(q.path)?n():s.status(409).json({error:"Please finish clinic setup first.",setup_required:true}));
 
 app.get("/api/data",A(async(q,s)=>{const d=q.u.role==="doctor";
@@ -375,6 +388,17 @@ app.get("/api/report-file/:id",A(async(q,s)=>{const id=/^\d{1,18}$/.test(q.param
  s.removeHeader("Content-Security-Policy");s.set({"Content-Type":r.mime,"Content-Disposition":`${q.query.dl?"attachment":"inline"}; filename="${r.name.replace(/[^\x20-\x7e]/g,"_").replace(/"/g,"")}"; filename*=UTF-8''${encodeURIComponent(r.name)}`,"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"}).send(r.data)}));
 app.delete("/api/reports/:id",need("doctor"),A(async(q,s)=>{const id=/^\d{1,18}$/.test(q.params.id)?q.params.id:"0",r=await one("DELETE FROM reports WHERE cid=$1 AND id=$2 RETURNING pid",[q.u.cid,id]);if(!r)return s.status(404).json({error:"Not found"});await audit(q.u,"report_delete",r.pid);s.json({ok:true})}));
 
+/* store a PDF made in the browser and return a 3-day link for the WhatsApp message */
+app.post("/api/shared",A(async(q,s)=>{const b=q.body||{},pid=str(b.pid,20),kind=SKINDS.includes(b.kind)?b.kind:"";if(!kind)return s.status(400).json({error:"Unknown document"});
+ if(kind==="Prescription"&&q.u.role!=="doctor")return s.status(403).json({error:"Only a doctor can do this"});
+ if(!await one("SELECT 1 FROM docs WHERE cid=$1 AND coll='patients' AND id=$2",[q.u.cid,pid]))return s.status(404).json({error:"Patient not found"});
+ const m=/^data:application\/pdf;base64,([A-Za-z0-9+/=]+)$/.exec(typeof b.data==="string"?b.data:"");const buf=m?Buffer.from(m[1],"base64"):null;
+ if(!buf||buf.subarray(0,4).toString("latin1")!=="%PDF")return s.status(400).json({error:"The PDF could not be made. Please try again."});if(buf.length>SMAX)return s.status(400).json({error:"The PDF is larger than 5 MB."});
+ const name=(str(b.name,100).replace(/[^\w.\- ]/g,"_")||"document").replace(/\.pdf$/i,"")+".pdf",t=crypto.randomBytes(24).toString("hex");
+ await Q("DELETE FROM shared_docs WHERE exp<now()");
+ await Q(`INSERT INTO shared_docs(th,cid,pid,kind,ref,name,data,exp) VALUES($1,$2,$3,$4,$5,$6,$7,now()+interval '${SDAYS} days')`,[sha(t),q.u.cid,pid,kind,str(b.ref,30)||null,name,buf]);
+ await audit(q.u,"share_pdf",pid);s.json({url:base(q)+"/d/"+t,days:SDAYS})}));
+
 /* records: patients, appts, rx (doctor only), bills */
 const coll=(q,s,n)=>{if(!PFX[q.params.c])return s.status(404).json({error:"Unknown collection"});if(q.params.c==="rx"&&q.u.role!=="doctor")return s.status(403).json({error:"Only a doctor can do this"});
  const j=q.body&&typeof q.body==="object"&&!Array.isArray(q.body)?JSON.stringify(q.body):"";if(!j||j.length>1e5||j.includes("\\u0000"))return s.status(400).json({error:"Bad data"});n()};
@@ -383,7 +407,7 @@ app.delete("/api/visits/:id",need("doctor"),A(async(q,s)=>{const id=str(q.params
  const r=await tx(async c=>{const v=(await c.query("DELETE FROM docs WHERE cid=$1 AND coll='visits' AND id=$2 RETURNING id",[cid,id])).rowCount;if(!v)return null;
   const b=(await c.query("DELETE FROM docs WHERE cid=$1 AND coll='bills' AND data->>'vid'=$2 AND COALESCE(jsonb_array_length(data->'pays'),0)=0 RETURNING id",[cid,id])).rows[0];return {billDeleted:b?b.id:null}});
  if(!r)return s.status(404).json({error:"Visit not found"});await audit(q.u,"visit_delete",id);s.json({ok:true,...r})}));
-app.delete("/api/patients/:id",need("doctor"),A(async(q,s)=>{const id=q.params.id,cid=q.u.cid;await tx(async c=>{await c.query("DELETE FROM docs WHERE cid=$1 AND coll IN ('patients','sigs') AND id=$2",[cid,id]);await c.query("DELETE FROM docs WHERE cid=$1 AND coll IN ('visits','rx','bills','appts') AND data->>'pid'=$2",[cid,id]);await c.query("DELETE FROM reports WHERE cid=$1 AND pid=$2",[cid,id]);await c.query("DELETE FROM report_links WHERE cid=$1 AND pid=$2",[cid,id])});await audit(q.u,"patient_delete",id);s.json({ok:true})}));
+app.delete("/api/patients/:id",need("doctor"),A(async(q,s)=>{const id=q.params.id,cid=q.u.cid;await tx(async c=>{await c.query("DELETE FROM docs WHERE cid=$1 AND coll IN ('patients','sigs') AND id=$2",[cid,id]);await c.query("DELETE FROM docs WHERE cid=$1 AND coll IN ('visits','rx','bills','appts') AND data->>'pid'=$2",[cid,id]);await c.query("DELETE FROM reports WHERE cid=$1 AND pid=$2",[cid,id]);await c.query("DELETE FROM report_links WHERE cid=$1 AND pid=$2",[cid,id]);await c.query("DELETE FROM shared_docs WHERE cid=$1 AND pid=$2",[cid,id])});await audit(q.u,"patient_delete",id);s.json({ok:true})}));
 app.post("/api/:c",coll,A(async(q,s)=>{const id=await nextId(q.u.cid,q.params.c),d={...q.body,id};if(q.params.c==="visits"&&q.u.role!=="doctor")CLIN.forEach(k=>delete d[k]);if(q.params.c==="rx"||q.params.c==="bills")d.no=id;
  await Q("INSERT INTO docs(cid,coll,id,data) VALUES($1,$2,$3,$4)",[q.u.cid,q.params.c,id,JSON.stringify(d)]);await audit(q.u,"create",id);s.json(d)}));
 app.put("/api/:c/:id",coll,A(async(q,s)=>{const d={...q.body,id:q.params.id};if(q.params.c==="visits"&&q.u.role!=="doctor"){const o=await one("SELECT data FROM docs WHERE cid=$1 AND coll='visits' AND id=$2",[q.u.cid,q.params.id]);CLIN.forEach(k=>{delete d[k];if(o&&o.data[k]!==undefined)d[k]=o.data[k]})}if(q.params.c==="rx"||q.params.c==="bills")d.no=q.params.id;
@@ -392,6 +416,7 @@ app.put("/api/:c/:id",coll,A(async(q,s)=>{const d={...q.body,id:q.params.id};if(
 app.use((e,q,s,n)=>{if(e.type==="entity.parse.failed"||e.type==="entity.too.large")return s.status(400).json({error:"Bad request"});console.error(e);s.status(500).json({error:"Server error"})});
 
 (async()=>{await init();DUMMY=await hashPw(crypto.randomBytes(8).toString("hex"));
+ setInterval(()=>Q("DELETE FROM shared_docs WHERE exp<now()").catch(()=>{}),36e5).unref();
  const srv=app.listen(PORT,()=>console.log("Clinic server running on port "+PORT));
  const stop=()=>srv.close(()=>pool.end().then(()=>process.exit(0)));process.on("SIGTERM",stop);process.on("SIGINT",stop)})()
  .catch(e=>{console.error("Startup failed:",e.message);process.exit(1)});
