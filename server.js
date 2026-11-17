@@ -266,7 +266,7 @@ const checkProfile=b=>{const o={},e={},req=(k,n,msg)=>{o[k]=str(b[k],n);if(!o[k]
  o.pin=str(b.pin,10).replace(/\s/g,"");if(!o.pin)e.pin="Enter the pincode";else if(!/^[1-9]\d{5}$/.test(o.pin))e.pin="Pincode must be 6 digits";
  req("doctor",100,"Enter the doctor's full name");req("qual",150,"Enter the doctor's qualifications");o.spec=str(b.spec,120);req("reg",50,"Enter the council registration number");
  o.fee=str(typeof b.fee==="number"?String(b.fee):b.fee,12);if(o.fee&&!/^\d{1,7}(\.\d{1,2})?$/.test(o.fee))e.fee="Enter the fee as a number, e.g. 500";
- o.time=str(b.time,150);o.gstin=str(b.gstin,20).toUpperCase().replace(/\s/g,"");if(o.gstin&&!GSTRE.test(o.gstin))e.gstin="GSTIN should be 15 characters, e.g. 29ABCDE1234F1Z5";
+ o.time=str(b.time,300);o.gstin=str(b.gstin,20).toUpperCase().replace(/\s/g,"");if(o.gstin&&!GSTRE.test(o.gstin))e.gstin="GSTIN should be 15 characters, e.g. 29ABCDE1234F1Z5";
  o.billnote=str(b.billnote,300);return {o,e}};
 const profileRoute=finish=>A(async(q,s)=>{const {o,e}=checkProfile(q.body||{});
  if(Object.keys(e).length)return s.status(400).json({error:"Please fix the highlighted fields.",fields:e});
