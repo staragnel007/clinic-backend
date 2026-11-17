@@ -32,7 +32,27 @@ UPDATE users SET trial_end=now()+interval '14 days' WHERE trial_end IS NULL AND 
    await c.query("UPDATE kv SET k='c1:'||k WHERE k='clinic' OR k LIKE 'seq:%'")}
   await c.query("ALTER TABLE docs ALTER COLUMN cid SET NOT NULL");await c.query("ALTER TABLE docs DROP CONSTRAINT IF EXISTS docs_pkey");await c.query("ALTER TABLE docs ADD PRIMARY KEY(cid,coll,id)");
   await c.query("ALTER TABLE regs ALTER COLUMN cid SET NOT NULL");await c.query("ALTER TABLE users ALTER COLUMN cid SET NOT NULL");
-  await c.query("INSERT INTO kv(k,v) VALUES('schema','2') ON CONFLICT(k) DO UPDATE SET v='2'")})};
+  await c.query("INSERT INTO kv(k,v) VALUES('schema','2') ON CONFLICT(k) DO UPDATE SET v='2'")});
+ /* clinic profile columns and the first-time setup flag */
+ await Q(`ALTER TABLE clinics
+  ADD COLUMN IF NOT EXISTS is_setup_complete BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS setup_completed_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS name TEXT, ADD COLUMN IF NOT EXISTS tagline TEXT, ADD COLUMN IF NOT EXISTS logo TEXT,
+  ADD COLUMN IF NOT EXISTS phone TEXT, ADD COLUMN IF NOT EXISTS email TEXT,
+  ADD COLUMN IF NOT EXISTS addr_street TEXT, ADD COLUMN IF NOT EXISTS addr_area TEXT, ADD COLUMN IF NOT EXISTS city TEXT,
+  ADD COLUMN IF NOT EXISTS state TEXT, ADD COLUMN IF NOT EXISTS pincode TEXT,
+  ADD COLUMN IF NOT EXISTS doctor_name TEXT, ADD COLUMN IF NOT EXISTS qualifications TEXT,
+  ADD COLUMN IF NOT EXISTS specialization TEXT, ADD COLUMN IF NOT EXISTS reg_number TEXT,
+  ADD COLUMN IF NOT EXISTS consult_fee NUMERIC(10,2), ADD COLUMN IF NOT EXISTS timings TEXT,
+  ADD COLUMN IF NOT EXISTS gstin TEXT, ADD COLUMN IF NOT EXISTS footer_note TEXT,
+  ADD COLUMN IF NOT EXISTS profile_updated TIMESTAMPTZ`);
+ /* one-time: copy each clinic's profile out of the kv JSON into the columns. Clinics that already exist count as set up. */
+ await tx(async c=>{await c.query("SELECT pg_advisory_xact_lock(7003)");if((await c.query("SELECT 1 FROM kv WHERE k='profile_cols'")).rowCount)return;
+  for(const {id} of (await c.query("SELECT id FROM clinics ORDER BY id")).rows){const k="c"+id+":clinic",r=(await c.query("SELECT v FROM kv WHERE k=$1",[k])).rows[0];let o={};try{o=r?JSON.parse(r.v):{}}catch(e){}
+   const v=PROF.map(([f])=>{const x=typeof o[f]==="number"?String(o[f]):o[f];return f==="fee"?(/^\d{1,8}(\.\d{1,2})?$/.test(str(x,20))?str(x,20):null):f==="logo"?(typeof x==="string"&&IMG.test(x)?x:null):(str(x,600)||null)});
+   await c.query(`UPDATE clinics SET ${PROF.map(([,col],i)=>col+"=$"+(i+2)).join(",")},is_setup_complete=true,setup_completed_at=now(),profile_updated=now() WHERE id=$1`,[id,...v]);
+   if(r){PROF.forEach(([f])=>delete o[f]);await c.query("UPDATE kv SET v=$2 WHERE k=$1",[k,JSON.stringify(o)])}}
+  await c.query("INSERT INTO kv(k,v) VALUES('profile_cols','1')")})};
 const newSlug=()=>crypto.randomBytes(6).toString("hex");
 const TRIAL_DAYS=Math.max(1,Math.min(365,+process.env.TRIAL_DAYS||14));
 const today=()=>new Date().toLocaleDateString("en-CA",{timeZone:TZ}),sha=s=>crypto.createHash("sha256").update(s).digest("hex");
@@ -46,7 +66,13 @@ const PFX={patients:"OP-",appts:"A-",rx:"RX-",bills:"INV-",visits:"V-"},CLIN=["d
 const pref=async(cid,c)=>{if(c!=="patients"&&c!=="bills")return PFX[c];const o=await clinic(cid),p=o[c==="patients"?"opPrefix":"invPrefix"];return /^[A-Za-z0-9-]{1,8}$/.test(p||"")?p:PFX[c]};
 const nextId=async(cid,c,x=Q)=>(await pref(cid,c))+String((await x("INSERT INTO kv(k,v) VALUES($1,'1') ON CONFLICT(k) DO UPDATE SET v=(kv.v::int+1)::text RETURNING v",["c"+cid+":seq:"+c])).rows[0].v).padStart(4,"0");
 const all=async(cid,c)=>(await Q("SELECT data FROM docs WHERE cid=$1 AND coll=$2 ORDER BY n",[cid,c])).rows.map(r=>r.data);
-const clinic=async cid=>{const r=await one("SELECT v FROM kv WHERE k=$1",["c"+cid+":clinic"]);return r?JSON.parse(r.v):{}};
+/* The clinic profile lives in columns on `clinics`; every other setting (theme, stamp, forms, lists) stays in the kv JSON.
+   clinic() returns both merged, using the same keys the browser has always used. */
+const PROF=[["name","name"],["tag","tagline"],["logo","logo"],["phone","phone"],["email","email"],["addr","addr_street"],["area","addr_area"],["city","city"],["state","state"],["pin","pincode"],
+ ["doctor","doctor_name"],["qual","qualifications"],["spec","specialization"],["reg","reg_number"],["fee","consult_fee"],["time","timings"],["gstin","gstin"],["billnote","footer_note"]];
+const IMG=/^data:image\/(png|jpeg);base64,[A-Za-z0-9+\/=]+$/;
+const clinic=async cid=>{const [r,p]=await Promise.all([one("SELECT v FROM kv WHERE k=$1",["c"+cid+":clinic"]),one("SELECT * FROM clinics WHERE id=$1",[cid])]);const o=r?JSON.parse(r.v):{};
+ if(p)for(const [f,col] of PROF)o[f]=p[col]==null?"":f==="fee"?String(+p[col]):p[col];return o};
 /* public pages find their clinic by slug; the old slug-less /register keeps working for clinic 1 */
 const bySlug=async sl=>{if(!sl){const r=await one("SELECT id FROM clinics WHERE id=1");return r&&r.id}if(!/^[a-f0-9]{12}$/.test(sl))return null;const r=await one("SELECT id FROM clinics WHERE slug=$1",[sl]);return r&&r.id};
 const str=(v,n)=>typeof v==="string"?v.replace(/\u0000/g,"").trim().slice(0,n):"";
@@ -59,10 +85,19 @@ app.use((q,s,n)=>{s.set({"Content-Security-Policy":"default-src 'self'; script-s
 app.use(["/api/clinic","/api/import"],express.json({limit:"9mb"}));
 app.use("/api/public/register",express.json({limit:"400kb"}));
 app.use(express.json({limit:"200kb"}));
-app.get(["/","/signup","/forgot","/reset"],(q,s)=>s.set("Cache-Control","no-store").sendFile(path.join(__dirname,"public/app.html")));
+const APP=path.join(__dirname,"public/app.html");
+/* signed-in users whose clinic is not set up always land on /setup-clinic, and only they can open it */
+app.get(["/","/setup-clinic"],A(async(q,s)=>{const u=await who(q),onSetup=q.path==="/setup-clinic";
+ if(u&&!u.setup&&!onSetup)return s.redirect("/setup-clinic");if(onSetup&&(!u||u.setup))return s.redirect("/");
+ s.set("Cache-Control","no-store").sendFile(APP)}));
+app.get(["/signup","/forgot","/reset"],(q,s)=>s.set("Cache-Control","no-store").sendFile(APP));
 app.get("/qrcode.js",(q,s)=>s.sendFile(require.resolve("qrcode-generator/qrcode.js")));
 app.get(["/register","/register/:slug"],A(async(q,s)=>{const sl=q.params.slug||"",cid=await bySlug(sl);if(!cid)return s.status(404).type("text").send("This registration link is not valid. Please ask the clinic for a new one.");
- s.type("html").send(REG.replaceAll("{{CLINIC}}",E((await clinic(cid)).name||"Clinic")).replaceAll("{{SLUG}}",sl))}));
+ const c=await clinic(cid),nm=E(c.name||"Clinic");
+ s.type("html").send(REG.replaceAll("{{SLUG}}",()=>sl).replaceAll("{{CLINIC}}",()=>nm).replace("{{HEADER}}",()=>regHead(c)))}));
+const regHead=c=>{const ad=[c.addr,c.area,c.city,[c.state,c.pin].filter(Boolean).join(" - ")].filter(Boolean).join(", ");
+ return (c.logo&&IMG.test(c.logo)?`<img src="${c.logo}" alt="">`:"")+`<h1>${E(c.name||"Clinic")}</h1>`+(c.tag?`<div class="tg">${E(c.tag)}</div>`:"")+
+  (ad||c.phone?`<div class="ad">${E(ad)}${c.phone?(ad?"<br>":"")+"Phone: "+E(c.phone):""}</div>`:"")};
 
 /* public: patient self-registration (inbox only, never writes patients directly) */
 app.get("/api/public/form",A(async(q,s)=>{const cid=await bySlug(str(q.query.c,20));if(!cid)return s.status(404).json({error:"Unknown clinic"});const c=await clinic(cid);s.json({name:c.name||"Clinic",form:c.regForm||DEF_FORM})}));
@@ -92,10 +127,10 @@ const base=q=>APP_URL||(q.protocol+"://"+q.get("host"));
 const EMAIL=/^[^\s@<>"]{1,64}@[^\s@<>"]{1,190}\.[a-z]{2,24}$/i,mail=v=>{const e=str(v,254).toLowerCase();return EMAIL.test(e)?e:""};
 const cookie=q=>{const m=/(?:^|;\s*)sid=([a-f0-9]{64})/.exec(q.headers.cookie||"");return m&&m[1]};
 const login=async(s,id)=>{const t=crypto.randomBytes(32).toString("hex");await Q("INSERT INTO sessions(th,uid,exp) VALUES($1,$2,$3)",[sha(t),id,Date.now()+432e5]);s.append("Set-Cookie",`sid=${t}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200${SECURE?"; Secure":""}`)};
-const who=async q=>{const t=cookie(q);if(!t)return null;return(await one("SELECT u.id,u.username,u.name,u.role,u.email,u.cid,c.slug FROM sessions s JOIN users u ON u.id=s.uid JOIN clinics c ON c.id=u.cid WHERE s.th=$1 AND s.exp>$2",[sha(t),Date.now()]))||null};
+const who=async q=>{const t=cookie(q);if(!t)return null;return(await one("SELECT u.id,u.username,u.name,u.role,u.email,u.cid,c.slug,c.is_setup_complete AS setup FROM sessions s JOIN users u ON u.id=s.uid JOIN clinics c ON c.id=u.cid WHERE s.th=$1 AND s.exp>$2",[sha(t),Date.now()]))||null};
 /* a new sign-up always gets its own clinic, so its records are invisible to every other clinic */
-const newClinic=async(c,{email,name,hash,gsub,clinicName})=>{const cid=(await c.query("INSERT INTO clinics(slug) VALUES($1) RETURNING id",[newSlug()])).rows[0].id;
- if(clinicName)await c.query("INSERT INTO kv(k,v) VALUES($1,$2)",["c"+cid+":clinic",JSON.stringify({name:clinicName})]);
+/* is_setup_complete defaults to false, so the new doctor is sent to /setup-clinic; the clinic name and email are pre-filled there */
+const newClinic=async(c,{email,name,hash,gsub,clinicName})=>{const cid=(await c.query("INSERT INTO clinics(slug,name,email) VALUES($1,$2,$3) RETURNING id",[newSlug(),clinicName||null,email])).rows[0].id;
  return(await c.query("INSERT INTO users(username,name,role,hash,email,gsub,cid,trial_end) VALUES($1,$2,'doctor',$3,$1,$4,$5,now()+make_interval(days=>$6)) RETURNING id,cid",[email,name,hash,gsub||null,cid,TRIAL_DAYS])).rows[0]};
 app.get("/api/status",A(async(q,s)=>s.json({me:await who(q),google:!!(GID&&GSECRET),reset:!!(RESEND&&MAIL_FROM)})));
 app.use("/api",(q,s,n)=>{if(q.method!=="GET"&&q.headers["x-requested-with"]!=="opd"&&!q.path.startsWith("/public"))return s.status(403).json({error:"Forbidden"});n()});
@@ -183,6 +218,9 @@ app.post("/api/admin/clinics/:id/paid",adm,A(async(q,s)=>{const id=uid(q.params.
  if(!r)return s.status(404).json({error:"Not found"});await audit(null,paid?"admin_paid":"admin_unpaid",String(id));s.json(await one(CL+" AND id=$1",[id]))}));
 app.use("/api",A(async(q,s,n)=>{q.u=await who(q);q.u?n():s.status(401).json({error:"Please sign in"})}));
 const need=r=>(q,s,n)=>q.u.role===r?n():s.status(403).json({error:"Only a doctor can do this"});
+/* until clinic setup is finished, nothing can be created or changed except the clinic profile itself */
+const GATED=/^\/(patients|appts|rx|bills|visits|registrations|import|users)(\/|$)/;
+app.use("/api",(q,s,n)=>q.u.setup||q.method==="GET"||!GATED.test(q.path)?n():s.status(409).json({error:"Please finish clinic setup first.",setup_required:true}));
 
 app.get("/api/data",A(async(q,s)=>{const d=q.u.role==="doctor";
  const cid=q.u.cid,[cl,patients,appts,rx,bills,regs,users,visits,doctors]=await Promise.all([clinic(cid),all(cid,"patients"),all(cid,"appts"),d?all(cid,"rx"):[],all(cid,"bills"),Q("SELECT id,data,created FROM regs WHERE cid=$1 ORDER BY id",[cid]),d?Q("SELECT id,username,name,role,email FROM users WHERE cid=$1 ORDER BY id",[cid]):{rows:[]},all(cid,"visits"),Q("SELECT id,name FROM users WHERE cid=$1 AND role='doctor' ORDER BY id",[cid])]);
@@ -194,13 +232,36 @@ const cleanForm=f=>{try{const seen=new Set(),secs=(Array.isArray(f&&f.sections)?
   if(LOCK.includes(id)){o.y={name:"text",age:"number",sex:"select",ph:"phone"}[id];o.r=1;o.k=1}else if(x.r)o.r=1;
   if(o.y==="select"){o.o=id==="sex"?["Male","Female","Other"]:lst(x.o,12,40);if(!o.o.length)o.o=["Option 1"]}return o}).filter(Boolean)}));
  return LOCK.every(k=>seen.has(k))?{sig:!!(f&&f.sig),sections:secs}:DEF_FORM}catch(e){return DEF_FORM}};
-const SET={name:200,tag:200,doctor:200,spec:200,qual:200,time:200,reg:100,phone:30,phlabel:100,addr:400,city:100,state:100,pin:10,review:300,revmsg:600,theme:20,sigstyle:8,stamp:600,stampcol:10,stampmode:6,hdr:8,txt:8,nsize:8,fee:10,billnote:300};
+/* settings kept in the kv JSON; the clinic profile fields (PROF) are saved through /api/clinic/profile instead */
+const SET={phlabel:100,review:300,revmsg:600,theme:20,sigstyle:8,stamp:600,stampcol:10,stampmode:6,hdr:8,txt:8,nsize:8};
+const STATES=["Andaman and Nicobar Islands","Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chandigarh","Chhattisgarh","Dadra and Nagar Haveli and Daman and Diu","Delhi","Goa","Gujarat","Haryana","Himachal Pradesh","Jammu and Kashmir","Jharkhand","Karnataka","Kerala","Ladakh","Lakshadweep","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Puducherry","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal"];
+const GSTRE=/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+/* validates the setup / clinic profile form; returns cleaned values and a {field: message} map */
+const checkProfile=b=>{const o={},e={},req=(k,n,msg)=>{o[k]=str(b[k],n);if(!o[k])e[k]=msg};
+ req("name",120,"Enter your clinic name");o.tag=str(b.tag,150);
+ o.logo=typeof b.logo==="string"?b.logo:"";if(o.logo&&!(o.logo.length<2.8e6&&IMG.test(o.logo)))e.logo="The logo must be a PNG or JPG image under 2MB";
+ o.phone=str(b.phone,20).replace(/[\s()-]/g,"").replace(/^(\+?91|0)(?=\d{10}$)/,"");
+ if(!o.phone)e.phone="Enter the clinic phone number";else if(!/^[6-9]\d{9}$/.test(o.phone))e.phone="Enter a 10-digit mobile number starting with 6, 7, 8 or 9";
+ const em=str(b.email,254);o.email=em?mail(em):"";if(em&&!o.email)e.email="Enter a valid email address";
+ req("addr",200,"Enter the street address");o.area=str(b.area,120);req("city",80,"Enter the city");
+ const st=str(b.state,60);o.state=STATES.find(x=>x.toLowerCase()===st.toLowerCase())||"";if(!st)e.state="Choose the state";else if(!o.state)e.state="Choose a state from the list";
+ o.pin=str(b.pin,10).replace(/\s/g,"");if(!o.pin)e.pin="Enter the pincode";else if(!/^[1-9]\d{5}$/.test(o.pin))e.pin="Pincode must be 6 digits";
+ req("doctor",100,"Enter the doctor's full name");req("qual",150,"Enter the doctor's qualifications");o.spec=str(b.spec,120);req("reg",50,"Enter the council registration number");
+ o.fee=str(typeof b.fee==="number"?String(b.fee):b.fee,12);if(o.fee&&!/^\d{1,7}(\.\d{1,2})?$/.test(o.fee))e.fee="Enter the fee as a number, e.g. 500";
+ o.time=str(b.time,150);o.gstin=str(b.gstin,20).toUpperCase().replace(/\s/g,"");if(o.gstin&&!GSTRE.test(o.gstin))e.gstin="GSTIN should be 15 characters, e.g. 29ABCDE1234F1Z5";
+ o.billnote=str(b.billnote,300);return {o,e}};
+const profileRoute=finish=>A(async(q,s)=>{const {o,e}=checkProfile(q.body||{});
+ if(Object.keys(e).length)return s.status(400).json({error:"Please fix the highlighted fields.",fields:e});
+ await Q(`UPDATE clinics SET ${PROF.map(([,col],i)=>col+"=$"+(i+2)).join(",")},profile_updated=now()${finish?",is_setup_complete=true,setup_completed_at=COALESCE(setup_completed_at,now())":""} WHERE id=$1`,[q.u.cid,...PROF.map(([f])=>o[f]===""?null:o[f])]);
+ await audit(q.u,finish?"setup_complete":"profile");s.json({clinic:await clinic(q.u.cid),setup:finish||q.u.setup})});
 const lst=(v,n,m)=>(Array.isArray(v)?v:[]).slice(0,n).map(x=>str(x,m)).filter(Boolean);
 app.put("/api/clinic",need("doctor"),A(async(q,s)=>{const b=q.body||{},o={};for(const [k,n] of Object.entries(SET))o[k]=str(b[k],n);
- for(const k of ["logo","sig","lh"])o[k]=typeof b[k]==="string"&&b[k].length<2.8e6&&/^data:image\/(png|jpeg);base64,[A-Za-z0-9+\/=]+$/.test(b[k])?b[k]:"";
+ for(const k of ["sig","lh"])o[k]=typeof b[k]==="string"&&b[k].length<2.8e6&&IMG.test(b[k])?b[k]:"";
  for(const k of ["opPrefix","invPrefix"])o[k]=/^[A-Za-z0-9-]{1,8}$/.test(str(b[k],8))?str(b[k],8):"";
  o.regForm=cleanForm(b.regForm);o.noteBoxes=lst(b.noteBoxes,10,60);o.meds=lst(b.meds,3000,80);o.prices=(Array.isArray(b.prices)?b.prices:[]).slice(0,300).map(x=>({n:str(x&&x.n,80),r:Math.max(0,+(x&&x.r)||0)})).filter(x=>x.n);
- await Q("INSERT INTO kv(k,v) VALUES($1,$2) ON CONFLICT(k) DO UPDATE SET v=excluded.v",["c"+q.u.cid+":clinic",JSON.stringify(o)]);await audit(q.u,"clinic");s.json(o)}));
+ await Q("INSERT INTO kv(k,v) VALUES($1,$2) ON CONFLICT(k) DO UPDATE SET v=excluded.v",["c"+q.u.cid+":clinic",JSON.stringify(o)]);await audit(q.u,"clinic");s.json(await clinic(q.u.cid))}));
+app.post("/api/clinic/setup",need("doctor"),profileRoute(true));
+app.put("/api/clinic/profile",need("doctor"),profileRoute(false));
 app.post("/api/import/patients",need("doctor"),A(async(q,s)=>{const rows=Array.isArray(q.body&&q.body.rows)?q.body.rows.slice(0,1000):[];let n=0;
  await tx(async c=>{for(const r of rows){const name=str(r&&r.name,100);if(!name)continue;const ph=str(String(r.ph??""),20).replace(/\D/g,"").slice(-10),dt=/^\d{4}-\d{2}-\d{2}$/.test(r.date||"")?r.date:today();
   const id=await nextId(q.u.cid,"patients",(t,p)=>c.query(t,p)),d={name,age:str(String(r.age??""),3).replace(/\D/g,""),sex:["Male","Female","Other"].includes(r.sex)?r.sex:"",ph:ph.length===10?ph:"",bg:str(r.bg,10),em:str(r.em,150),ad:str(r.ad,400),al:str(r.al,300),hx:str(r.hx,500),id,date:dt};

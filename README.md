@@ -16,11 +16,27 @@ patient page (registration form with visits, prescriptions, invoices, patient re
 appointments, analytics, settings and help. Patient numbers look like `OP-0001`. Saving a visit with an amount billed
 creates its invoice automatically. Only doctors can delete a patient, which also deletes all of that patient's records, so check your record-retention rules first.
 
+## First-time clinic setup
+Every new sign-up (Google or email) is sent to `/setup-clinic`, a 3-step form with a live letterhead preview:
+1. **Clinic:** name*, tagline, logo, phone/WhatsApp*, email (pre-filled), address* (street, area, city, state, pincode)
+2. **Doctor:** full name*, qualifications*, specialization, Medical/Dental Council registration number*
+3. **Billing (optional, can be skipped):** default consultation fee, timings, GSTIN, invoice/prescription footer note
+
+Until it is finished, `clinics.is_setup_complete` is false: every page redirects to `/setup-clinic`, and the API refuses to
+create or change patients, visits, appointments, prescriptions, invoices, registrations, imports and users (HTTP 409).
+Staff of a clinic that is not set up see a "waiting for the doctor" screen. Clinics that existed before this feature
+are marked as set up automatically. The same fields are edited later under Settings > Clinic Profile.
+
+These profile fields are stored as columns on `clinics` (`name`, `tagline`, `logo`, `phone`, `email`, `addr_street`,
+`addr_area`, `city`, `state`, `pincode`, `doctor_name`, `qualifications`, `specialization`, `reg_number`, `consult_fee`,
+`timings`, `gstin`, `footer_note`). Other settings (theme, stamp, registration form, lists) stay in the `kv` table.
+They print on prescriptions, invoices (with GSTIN), reports, certificates and the patient registration page.
+
 ## Settings (doctor only)
 Cards: extra note boxes for visits, medicine list, invoice price list, CSV import of old records, backup download.
-Tabs: Clinic Profile (letterhead details, logo, Google review link and WhatsApp message, dashboard theme,
-signature image, stamp lines, printed letterhead upload, header layout), Team, and Patient ID & Bill Fields
-(number prefixes, default fee, invoice footer note). Images are stored in the database as JPG/PNG under 2MB.
+Tabs: Clinic Profile (the setup fields above with a live preview, plus Google review link and WhatsApp message,
+dashboard theme, signature image, stamp lines, printed letterhead upload, header layout), Team, and Patient & Invoice
+Numbers (number prefixes). Logos are resized in the browser to 600px; other images are stored as JPG/PNG under 2MB.
 
 ## Registration form (Settings > Registration Form)
 Doctors can add, remove, rename, reorder and mark fields required, add sections, turn the patient signature box on or off,
