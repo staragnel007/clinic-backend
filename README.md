@@ -38,9 +38,13 @@ They print on prescriptions, invoices (with GSTIN), reports, certificates and th
 
 ## Settings (doctor only)
 Cards: extra note boxes for visits, medicine list, invoice price list, CSV import of old records, backup download.
-Tabs: Clinic Profile (the setup fields above with a live preview, plus Google review link and WhatsApp message,
-dashboard theme, signature image, stamp lines, printed letterhead upload, header layout), Team, and Patient & Invoice
-Numbers (number prefixes). Logos are resized in the browser to 600px; other images are stored as JPG/PNG under 2MB.
+Tabs: Clinic Profile, Team, and Patient & Invoice Numbers (number prefixes). Clinic Profile has three cards:
+- **Clinic profile & letterhead:** the setup fields plus letterhead design (header arrangement, text and name size,
+  colour, optional scanned letterhead), with a live A4 preview. One Save button saves both.
+- **Doctor signature & stamp:** signature image, what prints under it, ink colour, stamp lines and a hand-stamp box,
+  with a live preview of the bottom of a prescription.
+- **Google review requests:** review link and WhatsApp message.
+ Logos are resized in the browser to 600px; other images are stored as JPG/PNG under 2MB.
 
 ## Registration form (Settings > Registration Form)
 Doctors can add, remove, rename, reorder and mark fields required, add sections, turn the patient signature box on or off,
