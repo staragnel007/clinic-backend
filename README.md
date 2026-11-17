@@ -11,6 +11,10 @@ scan a per-clinic QR code to register themselves.
 - **Staff:** patients, visits (complaint and billing only), appointments, invoices and approving registrations. Diagnoses, visit notes, prescriptions, settings and users are hidden from staff, and staff edits never overwrite them.
 
 ## What the doctor sees
+The patient's Diagnosis tab is a case sheet: Patient Report / Certificate / Edit Patient at the top, the OP number,
+Personal Information, one card per note box (latest visit, edited in place), Next visit (date and time, WhatsApp
+reminder), Signatures (patient and doctor), then the full visit history.
+
 Dashboard (patient counts, today/this week appointments, recalls due, search, QR, registration link, CSV report),
 patient page (registration form with visits, prescriptions, invoices, patient report, medical certificate),
 appointments, analytics, settings and help. Patient numbers look like `OP-0001`. Saving a visit with an amount billed
@@ -37,7 +41,8 @@ These profile fields are stored as columns on `clinics` (`name`, `tagline`, `log
 They print on prescriptions, invoices (with GSTIN), reports, certificates and the patient registration page.
 
 ## Settings (doctor only)
-Cards: extra note boxes for visits, medicine list, invoice price list, CSV import of old records, backup download.
+Cards: Diagnosis and Doctor's Notes (add, rename, remove and reorder the note boxes for each visit, e.g. Diagnosis,
+Previous Treatment History, Treatment Plan), medicine list, invoice price list, CSV import of old records, backup download.
 Tabs: Clinic Profile, Team, and Patient & Invoice Numbers (number prefixes). Clinic Profile has three cards:
 - **Clinic profile & letterhead:** the setup fields plus letterhead design (header arrangement, text and name size,
   colour, optional scanned letterhead), with a live A4 preview. One Save button saves both.

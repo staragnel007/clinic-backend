@@ -276,11 +276,13 @@ const profileRoute=finish=>A(async(q,s)=>{const {o,e}=checkProfile(q.body||{});
  if(Object.keys(e).length)return s.status(400).json({error:"Please fix the highlighted fields.",fields:e});
  await Q(`UPDATE clinics SET ${PROF.map(([,col],i)=>col+"=$"+(i+2)).join(",")},profile_updated=now()${finish?",is_setup_complete=true,setup_completed_at=COALESCE(setup_completed_at,now())":""} WHERE id=$1`,[q.u.cid,...PROF.map(([f])=>o[f]===""?null:o[f])]);
  await audit(q.u,finish?"setup_complete":"profile");s.json({clinic:await clinic(q.u.cid),setup:finish||q.u.setup})});
+/* doctor's note boxes for each visit, in order: {id, l}. dx, rx and notes are built in; others are stored in visit.extra by id */
+const cleanBoxes=v=>{const seen=new Set();return v.slice(0,15).map(x=>{const id=str(x&&x.id,60),l=str(x&&x.l,60);if(!id||!l||seen.has(id))return null;seen.add(id);return {id,l}}).filter(Boolean)};
 const lst=(v,n,m)=>(Array.isArray(v)?v:[]).slice(0,n).map(x=>str(x,m)).filter(Boolean);
 app.put("/api/clinic",need("doctor"),A(async(q,s)=>{const b=q.body||{},o={};for(const [k,n] of Object.entries(SET))o[k]=str(b[k],n);
  for(const k of ["sig","lh"])o[k]=typeof b[k]==="string"&&b[k].length<2.8e6&&IMG.test(b[k])?b[k]:"";
  for(const k of ["opPrefix","invPrefix"])o[k]=/^[A-Za-z0-9-]{1,8}$/.test(str(b[k],8))?str(b[k],8):"";
- o.lang=SH.LANGS.some(x=>x[0]===b.lang)?b.lang:"";o.regForm=cleanForm(b.regForm);o.noteBoxes=lst(b.noteBoxes,10,60);o.meds=lst(b.meds,3000,80);o.prices=(Array.isArray(b.prices)?b.prices:[]).slice(0,300).map(x=>({n:str(x&&x.n,80),r:Math.max(0,+(x&&x.r)||0)})).filter(x=>x.n);
+ o.lang=SH.LANGS.some(x=>x[0]===b.lang)?b.lang:"";o.regForm=cleanForm(b.regForm);o.noteBoxes=lst(b.noteBoxes,10,60);if(Array.isArray(b.boxes))o.boxes=cleanBoxes(b.boxes);o.meds=lst(b.meds,3000,80);o.prices=(Array.isArray(b.prices)?b.prices:[]).slice(0,300).map(x=>({n:str(x&&x.n,80),r:Math.max(0,+(x&&x.r)||0)})).filter(x=>x.n);
  await Q("INSERT INTO kv(k,v) VALUES($1,$2) ON CONFLICT(k) DO UPDATE SET v=excluded.v",["c"+q.u.cid+":clinic",JSON.stringify(o)]);await audit(q.u,"clinic");s.json(await clinic(q.u.cid))}));
 app.post("/api/clinic/setup",need("doctor"),profileRoute(true));
 app.put("/api/clinic/profile",need("doctor"),profileRoute(false));
