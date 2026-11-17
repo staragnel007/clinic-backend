@@ -92,6 +92,7 @@ app.get(["/","/setup-clinic"],A(async(q,s)=>{const u=await who(q),onSetup=q.path
  if(u&&!u.setup&&!onSetup)return s.redirect("/setup-clinic");if(onSetup&&(!u||u.setup))return s.redirect("/");
  s.set("Cache-Control","no-store").sendFile(APP)}));
 app.get(["/signup","/forgot","/reset"],(q,s)=>s.set("Cache-Control","no-store").sendFile(APP));
+app.get("/medpacks.js",(q,s)=>s.sendFile(path.join(__dirname,"public/medpacks.js")));
 app.get("/shared.js",(q,s)=>s.sendFile(path.join(__dirname,"public/shared.js")));
 app.get("/qrcode.js",(q,s)=>s.sendFile(require.resolve("qrcode-generator/qrcode.js")));
 app.get(["/register","/register/:slug"],A(async(q,s)=>{const sl=q.params.slug||"",cid=await bySlug(sl);if(!cid)return s.status(404).type("text").send("This registration link is not valid. Please ask the clinic for a new one.");
@@ -277,12 +278,15 @@ const profileRoute=finish=>A(async(q,s)=>{const {o,e}=checkProfile(q.body||{});
  await Q(`UPDATE clinics SET ${PROF.map(([,col],i)=>col+"=$"+(i+2)).join(",")},profile_updated=now()${finish?",is_setup_complete=true,setup_completed_at=COALESCE(setup_completed_at,now())":""} WHERE id=$1`,[q.u.cid,...PROF.map(([f])=>o[f]===""?null:o[f])]);
  await audit(q.u,finish?"setup_complete":"profile");s.json({clinic:await clinic(q.u.cid),setup:finish||q.u.setup})});
 /* doctor's note boxes for each visit, in order: {id, l}. dx, rx and notes are built in; others are stored in visit.extra by id */
+/* the clinic's medicine list (Settings > Prescription): type, name, strength, usual dosage, intake, days, in use */
+const cleanMeds=v=>{const seen=new Set();return v.slice(0,3000).map(m=>{const n=str(m&&m.n,80);if(!n)return null;const o={id:str(m.id,12)||"m"+crypto.randomBytes(4).toString("hex"),t:str(m.t,12),n,s:str(m.s,30),d:str(m.d,30),i:str(m.i,20),u:str(String(m.u??""),4).replace(/\D/g,""),on:m.on!==false,src:str(m.src,8)};
+ const k=[o.t,o.n,o.s].join(" ").toLowerCase().replace(/\s+/g," ");if(seen.has(k)||seen.has("#"+o.id))return null;seen.add(k);seen.add("#"+o.id);return o}).filter(Boolean)};
 const cleanBoxes=v=>{const seen=new Set();return v.slice(0,15).map(x=>{const id=str(x&&x.id,60),l=str(x&&x.l,60),lg=str(x&&x.legacy,60);if(!id||!l||seen.has(id))return null;seen.add(id);return lg?{id,l,legacy:lg}:{id,l}}).filter(Boolean)};
 const lst=(v,n,m)=>(Array.isArray(v)?v:[]).slice(0,n).map(x=>str(x,m)).filter(Boolean);
 app.put("/api/clinic",need("doctor"),A(async(q,s)=>{const b=q.body||{},o={};for(const [k,n] of Object.entries(SET))o[k]=str(b[k],n);
  for(const k of ["sig","lh"])o[k]=typeof b[k]==="string"&&b[k].length<2.8e6&&IMG.test(b[k])?b[k]:"";
  for(const k of ["opPrefix","invPrefix"])o[k]=/^[A-Za-z0-9-]{1,8}$/.test(str(b[k],8))?str(b[k],8):"";
- o.lang=SH.LANGS.some(x=>x[0]===b.lang)?b.lang:"";o.regForm=cleanForm(b.regForm);o.noteBoxes=lst(b.noteBoxes,10,60);if(Array.isArray(b.boxes))o.boxes=cleanBoxes(b.boxes);o.meds=lst(b.meds,3000,80);o.prices=(Array.isArray(b.prices)?b.prices:[]).slice(0,300).map(x=>({n:str(x&&x.n,80),r:Math.max(0,+(x&&x.r)||0)})).filter(x=>x.n);
+ o.lang=SH.LANGS.some(x=>x[0]===b.lang)?b.lang:"";o.regForm=cleanForm(b.regForm);o.noteBoxes=lst(b.noteBoxes,10,60);if(Array.isArray(b.boxes))o.boxes=cleanBoxes(b.boxes);o.meds=lst(b.meds,3000,80);if(Array.isArray(b.medlist))o.medlist=cleanMeds(b.medlist);o.prices=(Array.isArray(b.prices)?b.prices:[]).slice(0,300).map(x=>({n:str(x&&x.n,80),r:Math.max(0,+(x&&x.r)||0)})).filter(x=>x.n);
  await Q("INSERT INTO kv(k,v) VALUES($1,$2) ON CONFLICT(k) DO UPDATE SET v=excluded.v",["c"+q.u.cid+":clinic",JSON.stringify(o)]);await audit(q.u,"clinic");s.json(await clinic(q.u.cid))}));
 app.post("/api/clinic/setup",need("doctor"),profileRoute(true));
 app.put("/api/clinic/profile",need("doctor"),profileRoute(false));

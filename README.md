@@ -40,6 +40,14 @@ These profile fields are stored as columns on `clinics` (`name`, `tagline`, `log
 `timings`, `gstin`, `footer_note`). Other settings (theme, stamp, registration form, lists) stay in the `kv` table.
 They print on prescriptions, invoices (with GSTIN), reports, certificates and the patient registration page.
 
+## Prescription medicine list (Settings > Prescription)
+Each clinic keeps its own medicine list: type (Tab, Cap, Syp, Inj, Cream...), name, strength, usual dosage, intake and
+days, and an "in use" switch. Add one at a time, paste a whole list (one per line, optionally `| dosage | intake | days`),
+or copy a ready list (Psychiatry, Dental, Skin / Dermatology, General practice, Diabetes; in `public/medpacks.js`).
+Copied medicines belong to the clinic from then on. While writing a prescription, in-use medicines are offered by name
+and picking one fills its usual dosage, days and intake. Stored as `medlist` in the clinic settings (no new columns);
+a clinic's older plain name list is read in automatically.
+
 ## Settings (doctor only)
 Cards: Diagnosis and Doctor's Notes (add, rename, remove and reorder the note boxes for each visit, e.g. Diagnosis,
 Previous Treatment History, Treatment Plan), medicine list, invoice price list, CSV import of old records, backup download.
