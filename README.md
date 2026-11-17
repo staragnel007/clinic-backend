@@ -62,6 +62,9 @@ Doctors can add, remove, rename, reorder and mark fields required, use Yes/No qu
 history checklist can be added in one click; any Yes shows as an alert on the patient page), add sections, and turn the patient signature box on or off.
 The page is laid out as: form sections (Personal Information, Medical History, ...), Patient consent, Second language,
 Patient signature, then Save. Every form shows one field per line.
+Each new visit (+ Visit today) asks "Any change in your medical history since the last visit?", shows the yes/no
+questions pre-filled from last time (editable when the answer is Yes), and needs the consent ticked again; the visit
+keeps its own answers and consent date, a doctor can tick "reviewed", and changes update the patient's alerts.
 Every form ends with a consent the patient must agree to; the date is saved with the patient and printed on the report. Name, age, sex and phone are locked.
 The same form is used for adding patients at the desk and for the public QR page. When the signature is on, patients
 sign with a finger on the QR page and the signature prints on the Patient Report. Uploading a photo or PDF of a paper
