@@ -307,7 +307,12 @@ app.post("/api/password",A(async(q,s)=>{const b=q.body||{},u=await one("SELECT *
 app.post("/api/registrations/:id/approve",A(async(q,s)=>{const id=uid(q.params.id);
  const cid=q.u.cid,d=id&&await tx(async c=>{const r=(await c.query("DELETE FROM regs WHERE id=$1 AND cid=$2 RETURNING data",[id,cid])).rows[0];if(!r)return null;
   const pid=await nextId(cid,"patients",(t,p)=>c.query(t,p)),d={...r.data,id:pid,date:today()};delete d.consent;d.consentAt=d.consentAt||today();if(d.sig){await c.query("INSERT INTO docs(cid,coll,id,data) VALUES($1,'sigs',$2,$3)",[cid,pid,JSON.stringify({sig:d.sig})]);d.hasSig=true;delete d.sig}
-  await c.query("INSERT INTO docs(cid,coll,id,data) VALUES($1,'patients',$2,$3)",[cid,pid,JSON.stringify(d)]);return d});
+  await c.query("INSERT INTO docs(cid,coll,id,data) VALUES($1,'patients',$2,$3)",[cid,pid,JSON.stringify(d)]);
+  /* registration counts as the first visit: carry over the complaint (if the form asks for one), yes/no answers and consent */
+  const fs=((await clinic(cid)).regForm||DEF_FORM).sections.flatMap(x=>x.f),get=f=>CORE.includes(f.id)?d[f.id]:(d.custom||{})[f.id],mh={},ccf=fs.find(f=>/complaint/i.test(f.l));
+  fs.filter(f=>f.y==="yesno").forEach(f=>{const x=get(f);if(x)mh[f.id]=x});
+  const vid=await nextId(cid,"visits",(t,p)=>c.query(t,p)),fv={pid,date:today(),cc:ccf?get(ccf)||"":"",mhChg:"First visit",mh,consentAt:d.consentAt,id:vid};
+  await c.query("INSERT INTO docs(cid,coll,id,data) VALUES($1,'visits',$2,$3)",[cid,vid,JSON.stringify(fv)]);return {...d,firstVisit:fv}});
  if(!d)return s.status(404).json({error:"Not found"});await audit(q.u,"reg_approve",d.id);s.json(d)}));
 app.delete("/api/registrations/:id",A(async(q,s)=>{const id=uid(q.params.id);if(id)await Q("DELETE FROM regs WHERE id=$1 AND cid=$2",[id,q.u.cid]);await audit(q.u,"reg_reject",q.params.id);s.json({ok:true})}));
 
