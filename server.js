@@ -286,7 +286,7 @@ const lst=(v,n,m)=>(Array.isArray(v)?v:[]).slice(0,n).map(x=>str(x,m)).filter(Bo
 app.put("/api/clinic",need("doctor"),A(async(q,s)=>{const b=q.body||{},o={};for(const [k,n] of Object.entries(SET))o[k]=str(b[k],n);
  for(const k of ["sig","lh"])o[k]=typeof b[k]==="string"&&b[k].length<2.8e6&&IMG.test(b[k])?b[k]:"";
  for(const k of ["opPrefix","invPrefix"])o[k]=/^[A-Za-z0-9-]{1,8}$/.test(str(b[k],8))?str(b[k],8):"";
- o.lang=SH.LANGS.some(x=>x[0]===b.lang)?b.lang:"";o.regForm=cleanForm(b.regForm);o.noteBoxes=lst(b.noteBoxes,10,60);if(Array.isArray(b.boxes))o.boxes=cleanBoxes(b.boxes);o.meds=lst(b.meds,3000,80);if(Array.isArray(b.medlist))o.medlist=cleanMeds(b.medlist);o.prices=(Array.isArray(b.prices)?b.prices:[]).slice(0,300).map(x=>({n:str(x&&x.n,80),r:Math.max(0,+(x&&x.r)||0)})).filter(x=>x.n);
+ o.lang=SH.LANGS.some(x=>x[0]===b.lang)?b.lang:"";o.regForm=cleanForm(b.regForm);o.noteBoxes=lst(b.noteBoxes,10,60);if(Array.isArray(b.boxes))o.boxes=cleanBoxes(b.boxes);o.meds=lst(b.meds,3000,80);if(Array.isArray(b.medlist))o.medlist=cleanMeds(b.medlist);o.prices=cleanPrices(b.prices);
  await Q("INSERT INTO kv(k,v) VALUES($1,$2) ON CONFLICT(k) DO UPDATE SET v=excluded.v",["c"+q.u.cid+":clinic",JSON.stringify(o)]);await audit(q.u,"clinic");s.json(await clinic(q.u.cid))}));
 app.post("/api/clinic/setup",need("doctor"),profileRoute(true));
 app.put("/api/clinic/profile",need("doctor"),profileRoute(false));
@@ -328,6 +328,11 @@ app.post("/api/sig/:id",A(async(q,s)=>{const id=str(q.params.id,20),sg=q.body&&q
  await Q("INSERT INTO docs(cid,coll,id,data) VALUES($1,'sigs',$2,$3) ON CONFLICT(cid,coll,id) DO UPDATE SET data=excluded.data,upd=now()",[q.u.cid,id,JSON.stringify({sig:sg})]);
  await audit(q.u,"patient_sig",id);s.json({ok:true})}));
 
+/* Settings > Invoice price list: name, category, price, in use. Duplicate names are dropped. */
+function cleanPrices(a){const seen=new Set(),o=[];for(const x of (Array.isArray(a)?a:[]).slice(0,1000)){if(!x||typeof x!=="object")continue;const n=str(x.n,80);if(!n)continue;const k=n.toLowerCase().replace(/\s+/g," ");if(seen.has(k))continue;seen.add(k);
+ const r=Math.max(0,Math.min(1e7,+x.r||0));o.push({id:str(x.id,20)||"p"+o.length,n,c:str(x.c,30),r:Math.round(r*100)/100,on:x.on!==false})}return o}
+/* delete one invoice row (doctor only) */
+app.delete("/api/bills/:id",need("doctor"),A(async(q,s)=>{const id=str(q.params.id,20);const r=await Q("DELETE FROM docs WHERE cid=$1 AND coll='bills' AND id=$2",[q.u.cid,id]);if(!r.rowCount)return s.status(404).json({error:"Not found"});await audit(q.u,"bill_delete",id);s.json({ok:true})}));
 /* records: patients, appts, rx (doctor only), bills */
 const coll=(q,s,n)=>{if(!PFX[q.params.c])return s.status(404).json({error:"Unknown collection"});if(q.params.c==="rx"&&q.u.role!=="doctor")return s.status(403).json({error:"Only a doctor can do this"});
  const j=q.body&&typeof q.body==="object"&&!Array.isArray(q.body)?JSON.stringify(q.body):"";if(!j||j.length>1e5||j.includes("\\u0000"))return s.status(400).json({error:"Bad data"});n()};
