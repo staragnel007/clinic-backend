@@ -12,8 +12,8 @@ scan a per-clinic QR code to register themselves.
 
 ## What the doctor sees
 The patient's Diagnosis tab is a case sheet: Patient Report / Certificate / Edit Patient at the top, the OP number,
-Personal Information, one card per note box (latest visit, edited in place), Next visit (date and time, WhatsApp
-reminder), Signatures (patient and doctor), then the full visit history.
+the visit history, Personal Information, one card per note box (latest visit, edited in place), Next visit (date
+and time, WhatsApp reminder), then Signatures (patient and doctor).
 
 Dashboard (patient counts, today/this week appointments, recalls due, search, QR, registration link, CSV report),
 patient page (registration form with visits, prescriptions, invoices, patient report, medical certificate),
