@@ -277,7 +277,7 @@ const profileRoute=finish=>A(async(q,s)=>{const {o,e}=checkProfile(q.body||{});
  await Q(`UPDATE clinics SET ${PROF.map(([,col],i)=>col+"=$"+(i+2)).join(",")},profile_updated=now()${finish?",is_setup_complete=true,setup_completed_at=COALESCE(setup_completed_at,now())":""} WHERE id=$1`,[q.u.cid,...PROF.map(([f])=>o[f]===""?null:o[f])]);
  await audit(q.u,finish?"setup_complete":"profile");s.json({clinic:await clinic(q.u.cid),setup:finish||q.u.setup})});
 /* doctor's note boxes for each visit, in order: {id, l}. dx, rx and notes are built in; others are stored in visit.extra by id */
-const cleanBoxes=v=>{const seen=new Set();return v.slice(0,15).map(x=>{const id=str(x&&x.id,60),l=str(x&&x.l,60);if(!id||!l||seen.has(id))return null;seen.add(id);return {id,l}}).filter(Boolean)};
+const cleanBoxes=v=>{const seen=new Set();return v.slice(0,15).map(x=>{const id=str(x&&x.id,60),l=str(x&&x.l,60),lg=str(x&&x.legacy,60);if(!id||!l||seen.has(id))return null;seen.add(id);return lg?{id,l,legacy:lg}:{id,l}}).filter(Boolean)};
 const lst=(v,n,m)=>(Array.isArray(v)?v:[]).slice(0,n).map(x=>str(x,m)).filter(Boolean);
 app.put("/api/clinic",need("doctor"),A(async(q,s)=>{const b=q.body||{},o={};for(const [k,n] of Object.entries(SET))o[k]=str(b[k],n);
  for(const k of ["sig","lh"])o[k]=typeof b[k]==="string"&&b[k].length<2.8e6&&IMG.test(b[k])?b[k]:"";
@@ -307,7 +307,12 @@ app.post("/api/password",A(async(q,s)=>{const b=q.body||{},u=await one("SELECT *
 app.post("/api/registrations/:id/approve",A(async(q,s)=>{const id=uid(q.params.id);
  const cid=q.u.cid,d=id&&await tx(async c=>{const r=(await c.query("DELETE FROM regs WHERE id=$1 AND cid=$2 RETURNING data",[id,cid])).rows[0];if(!r)return null;
   const pid=await nextId(cid,"patients",(t,p)=>c.query(t,p)),d={...r.data,id:pid,date:today()};delete d.consent;d.consentAt=d.consentAt||today();if(d.sig){await c.query("INSERT INTO docs(cid,coll,id,data) VALUES($1,'sigs',$2,$3)",[cid,pid,JSON.stringify({sig:d.sig})]);d.hasSig=true;delete d.sig}
-  await c.query("INSERT INTO docs(cid,coll,id,data) VALUES($1,'patients',$2,$3)",[cid,pid,JSON.stringify(d)]);return d});
+  await c.query("INSERT INTO docs(cid,coll,id,data) VALUES($1,'patients',$2,$3)",[cid,pid,JSON.stringify(d)]);
+  /* registration counts as the first visit: carry over the complaint (if the form asks for one), yes/no answers and consent */
+  const fs=((await clinic(cid)).regForm||DEF_FORM).sections.flatMap(x=>x.f),get=f=>CORE.includes(f.id)?d[f.id]:(d.custom||{})[f.id],mh={},ccf=fs.find(f=>/complaint/i.test(f.l));
+  fs.filter(f=>f.y==="yesno").forEach(f=>{const x=get(f);if(x)mh[f.id]=x});
+  const vid=await nextId(cid,"visits",(t,p)=>c.query(t,p)),fv={pid,date:today(),cc:ccf?get(ccf)||"":"",mhChg:"First visit",mh,consentAt:d.consentAt,id:vid};
+  await c.query("INSERT INTO docs(cid,coll,id,data) VALUES($1,'visits',$2,$3)",[cid,vid,JSON.stringify(fv)]);return {...d,firstVisit:fv}});
  if(!d)return s.status(404).json({error:"Not found"});await audit(q.u,"reg_approve",d.id);s.json(d)}));
 app.delete("/api/registrations/:id",A(async(q,s)=>{const id=uid(q.params.id);if(id)await Q("DELETE FROM regs WHERE id=$1 AND cid=$2",[id,q.u.cid]);await audit(q.u,"reg_reject",q.params.id);s.json({ok:true})}));
 
