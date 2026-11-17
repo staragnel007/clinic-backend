@@ -322,6 +322,11 @@ app.post("/api/sig/:id",A(async(q,s)=>{const id=str(q.params.id,20),sg=q.body&&q
 /* records: patients, appts, rx (doctor only), bills */
 const coll=(q,s,n)=>{if(!PFX[q.params.c])return s.status(404).json({error:"Unknown collection"});if(q.params.c==="rx"&&q.u.role!=="doctor")return s.status(403).json({error:"Only a doctor can do this"});
  const j=q.body&&typeof q.body==="object"&&!Array.isArray(q.body)?JSON.stringify(q.body):"";if(!j||j.length>1e5||j.includes("\\u0000"))return s.status(400).json({error:"Bad data"});n()};
+/* delete one visit (doctor only); its auto-created invoice goes too unless a payment was recorded on it */
+app.delete("/api/visits/:id",need("doctor"),A(async(q,s)=>{const id=str(q.params.id,20),cid=q.u.cid;
+ const r=await tx(async c=>{const v=(await c.query("DELETE FROM docs WHERE cid=$1 AND coll='visits' AND id=$2 RETURNING id",[cid,id])).rowCount;if(!v)return null;
+  const b=(await c.query("DELETE FROM docs WHERE cid=$1 AND coll='bills' AND data->>'vid'=$2 AND COALESCE(jsonb_array_length(data->'pays'),0)=0 RETURNING id",[cid,id])).rows[0];return {billDeleted:b?b.id:null}});
+ if(!r)return s.status(404).json({error:"Visit not found"});await audit(q.u,"visit_delete",id);s.json({ok:true,...r})}));
 app.delete("/api/patients/:id",need("doctor"),A(async(q,s)=>{const id=q.params.id,cid=q.u.cid;await tx(async c=>{await c.query("DELETE FROM docs WHERE cid=$1 AND coll IN ('patients','sigs') AND id=$2",[cid,id]);await c.query("DELETE FROM docs WHERE cid=$1 AND coll IN ('visits','rx','bills','appts') AND data->>'pid'=$2",[cid,id])});await audit(q.u,"patient_delete",id);s.json({ok:true})}));
 app.post("/api/:c",coll,A(async(q,s)=>{const id=await nextId(q.u.cid,q.params.c),d={...q.body,id};if(q.params.c==="visits"&&q.u.role!=="doctor")CLIN.forEach(k=>delete d[k]);if(q.params.c==="rx"||q.params.c==="bills")d.no=id;
  await Q("INSERT INTO docs(cid,coll,id,data) VALUES($1,$2,$3,$4)",[q.u.cid,q.params.c,id,JSON.stringify(d)]);await audit(q.u,"create",id);s.json(d)}));
