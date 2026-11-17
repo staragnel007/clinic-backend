@@ -239,7 +239,7 @@ app.delete("/api/admin/clinics/:id",adm,A(async(q,s)=>{const id=uid(q.params.id)
 app.use("/api",A(async(q,s,n)=>{q.u=await who(q);q.u?n():s.status(401).json({error:"Please sign in"})}));
 const need=r=>(q,s,n)=>q.u.role===r?n():s.status(403).json({error:"Only a doctor can do this"});
 /* until clinic setup is finished, nothing can be created or changed except the clinic profile itself */
-const GATED=/^\/(patients|appts|rx|bills|visits|registrations|import|users)(\/|$)/;
+const GATED=/^\/(patients|appts|rx|bills|visits|registrations|import|users|sig)(\/|$)/;
 app.use("/api",(q,s,n)=>q.u.setup||q.method==="GET"||!GATED.test(q.path)?n():s.status(409).json({error:"Please finish clinic setup first.",setup_required:true}));
 
 app.get("/api/data",A(async(q,s)=>{const d=q.u.role==="doctor";
@@ -310,6 +310,12 @@ app.post("/api/registrations/:id/approve",A(async(q,s)=>{const id=uid(q.params.i
 app.delete("/api/registrations/:id",A(async(q,s)=>{const id=uid(q.params.id);if(id)await Q("DELETE FROM regs WHERE id=$1 AND cid=$2",[id,q.u.cid]);await audit(q.u,"reg_reject",q.params.id);s.json({ok:true})}));
 
 app.get("/api/sig/:id",A(async(q,s)=>{const r=await one("SELECT data FROM docs WHERE cid=$1 AND coll='sigs' AND id=$2",[q.u.cid,q.params.id]);s.json({sig:r?r.data.sig:""})}));
+/* patient signature taken at the desk (Add / Edit patient); the QR page saves its signature through registration approval */
+app.post("/api/sig/:id",A(async(q,s)=>{const id=str(q.params.id,20),sg=q.body&&q.body.sig;
+ if(typeof sg!=="string"||!/^data:image\/png;base64,[A-Za-z0-9+\/=]{20,150000}$/.test(sg))return s.status(400).json({error:"Please ask the patient to sign in the box."});
+ const r=await Q("UPDATE docs SET data=jsonb_set(data,'{hasSig}','true'::jsonb),upd=now() WHERE cid=$1 AND coll='patients' AND id=$2",[q.u.cid,id]);if(!r.rowCount)return s.status(404).json({error:"Patient not found"});
+ await Q("INSERT INTO docs(cid,coll,id,data) VALUES($1,'sigs',$2,$3) ON CONFLICT(cid,coll,id) DO UPDATE SET data=excluded.data,upd=now()",[q.u.cid,id,JSON.stringify({sig:sg})]);
+ await audit(q.u,"patient_sig",id);s.json({ok:true})}));
 
 /* records: patients, appts, rx (doctor only), bills */
 const coll=(q,s,n)=>{if(!PFX[q.params.c])return s.status(404).json({error:"Unknown collection"});if(q.params.c==="rx"&&q.u.role!=="doctor")return s.status(403).json({error:"Only a doctor can do this"});
