@@ -4,8 +4,9 @@
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}h1{font-size:20px;margin:0 0 2px}h2{font-size:15px;margin:20px 0 0;padding-top:12px;border-top:1px solid var(--line)}p{margin:0 0 12px;color:var(--mut)}label{display:block;font-size:12px;color:var(--mut);margin:12px 0 3px}
 input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}textarea{min-height:56px}
 button{margin-top:16px;width:100%;background:var(--pri);color:var(--pi);border:0;padding:11px;border-radius:6px;font:inherit;font-weight:600;cursor:pointer}button:disabled{opacity:.6}.bad{color:var(--bad)}.c{display:flex;gap:8px;font-size:13px;color:var(--ink);align-items:flex-start}.c input{width:auto;margin-top:3px}.h{position:absolute;left:-9999px}
-#sg{width:100%;height:160px;background:#fff;border:1px solid var(--line);border-radius:6px;touch-action:none;display:block}.lnk{width:auto;margin:6px 0 0;padding:0;background:none;color:var(--pri);font-weight:500}</style></head><body><main><div class="card" id="f">
-<h1>{{CLINIC}}</h1><p>New patient registration</p><div id="fm" class="mut">Loading…</div>
+#sg{width:100%;height:160px;background:#fff;border:1px solid var(--line);border-radius:6px;touch-action:none;display:block}.lnk{width:auto;margin:6px 0 0;padding:0;background:none;color:var(--pri);font-weight:500}
+.hd{text-align:center;padding-bottom:12px;margin-bottom:10px;border-bottom:1px solid var(--line)}.hd img{display:block;max-height:64px;max-width:200px;margin:0 auto 8px}.hd .tg{color:var(--pri);font-weight:600;font-size:14px}.hd .ad{color:var(--mut);font-size:13px;margin-top:6px}.sub{text-align:center;font-weight:600}</style></head><body><main><div class="card" id="f">
+<div class="hd">{{HEADER}}</div><p class="sub">New patient registration</p><div id="fm" class="mut">Loading…</div>
 <input class="h" id="website" tabindex="-1" autocomplete="off" aria-hidden="true">
 <label class="c"><input type="checkbox" id="ok">I agree to share these details with the clinic for my treatment.</label>
 <p id="m" class="bad" style="margin:10px 0 0"></p><button id="go" disabled>Submit registration</button></div>
