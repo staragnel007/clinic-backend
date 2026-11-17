@@ -54,8 +54,9 @@ speaker check them. Doctors can correct any label, section title or the consent 
 
 ## Registration form (Settings > Registration Form)
 Doctors can add, remove, rename, reorder and mark fields required, use Yes/No questions (a standard 13-item medical
-history checklist can be added in one click; any Yes shows as an alert on the patient page), add sections, turn the patient signature box on or off,
-and add many fields at once by typing them as text (Label | type | options).
+history checklist can be added in one click; any Yes shows as an alert on the patient page), add sections, and turn the patient signature box on or off.
+The page is laid out as: form sections (Personal Information, Medical History, ...), Patient consent, Second language,
+Patient signature, then Save. Every form shows one field per line.
 Every form ends with a consent the patient must agree to; the date is saved with the patient and printed on the report. Name, age, sex and phone are locked.
 The same form is used for adding patients at the desk and for the public QR page. When the signature is on, patients
 sign with a finger on the QR page and the signature prints on the Patient Report. Uploading a photo or PDF of a paper
