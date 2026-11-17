@@ -24,6 +24,10 @@ ALTER TABLE docs ADD COLUMN IF NOT EXISTS cid INTEGER;
 ALTER TABLE regs ADD COLUMN IF NOT EXISTS cid INTEGER;
 ALTER TABLE audit ADD COLUMN IF NOT EXISTS cid INTEGER;
 UPDATE users SET trial_end=now()+interval '14 days' WHERE trial_end IS NULL AND role='doctor'`);
+ /* patient reports (PDF or photo) and the WhatsApp upload links */
+ await Q(`CREATE TABLE IF NOT EXISTS reports(id BIGSERIAL PRIMARY KEY,cid INTEGER NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,pid TEXT NOT NULL,kind TEXT NOT NULL,name TEXT NOT NULL,mime TEXT NOT NULL,size INTEGER NOT NULL,data BYTEA NOT NULL,src TEXT NOT NULL DEFAULT 'clinic',uid INTEGER,created TIMESTAMPTZ NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS reports_cid_pid ON reports(cid,pid);
+CREATE TABLE IF NOT EXISTS report_links(th TEXT PRIMARY KEY,cid INTEGER NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,pid TEXT NOT NULL,kind TEXT NOT NULL,exp TIMESTAMPTZ NOT NULL,created TIMESTAMPTZ NOT NULL DEFAULT now())`);
  /* one-time move from the single-clinic layout: everything that exists becomes clinic 1 */
  await tx(async c=>{await c.query("SELECT pg_advisory_xact_lock(7002)");if((await c.query("SELECT 1 FROM kv WHERE k='schema' AND v='2'")).rowCount)return;
   if((await c.query("SELECT 1 FROM users WHERE cid IS NULL UNION ALL SELECT 1 FROM docs WHERE cid IS NULL UNION ALL SELECT 1 FROM regs WHERE cid IS NULL LIMIT 1")).rowCount){
@@ -85,6 +89,7 @@ const app=express();app.disable("x-powered-by");app.set("trust proxy",process.en
 app.use((q,s,n)=>{s.set({"Content-Security-Policy":"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY"});if(q.path.startsWith("/api"))s.set("Cache-Control","no-store");n()});
 app.use(["/api/clinic","/api/import"],express.json({limit:"9mb"}));
 app.use("/api/public/register",express.json({limit:"400kb"}));
+app.use(["/api/reports","/api/public/report-link"],express.json({limit:"6mb"}));
 app.use(express.json({limit:"200kb"}));
 const APP=path.join(__dirname,"public/app.html");
 /* signed-in users whose clinic is not set up always land on /setup-clinic, and only they can open it */
@@ -119,6 +124,29 @@ app.post("/api/public/register",A(async(q,s)=>{
  if(form.sig){if(typeof b.sig!=="string"||!/^data:image\/png;base64,[A-Za-z0-9+\/=]{20,150000}$/.test(b.sig))return bad("Please sign in the box.");d.sig=b.sig}
  if((await one("SELECT COUNT(*)::int c FROM regs WHERE cid=$1",[cid])).c>=300)return s.status(503).json({error:"The clinic cannot accept more online registrations right now. Please register at the desk."});
  d.consent=true;d.consentAt=today();await Q("INSERT INTO regs(cid,data) VALUES($1,$2)",[cid,JSON.stringify(d)]);s.json({ok:true})}));
+
+/* reports: a PDF or a photo, at most 4 MB, checked by its first bytes rather than by what the browser claims */
+const RKINDS=["Lab report","Scan / X-ray","ECG","Discharge summary","Previous prescription","Other"],RMAX=4*1024*1024,RLINK_MAX=10;
+const rFile=b=>{const m=/^data:[^;,]{0,60};base64,([A-Za-z0-9+/=]+)$/.exec(typeof b.data==="string"?b.data:"");if(!m)return {err:"Choose a PDF or a photo to upload."};
+ const buf=Buffer.from(m[1],"base64");if(!buf.length)return {err:"The file is empty."};if(buf.length>RMAX)return {err:"The file is larger than 4 MB."};
+ const h=buf.subarray(0,12),mime=h.subarray(0,4).toString("latin1")==="%PDF"?"application/pdf":h[0]===0xff&&h[1]===0xd8&&h[2]===0xff?"image/jpeg":h.subarray(0,8).equals(Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]))?"image/png":h.subarray(0,4).toString("latin1")==="RIFF"&&h.subarray(8,12).toString("latin1")==="WEBP"?"image/webp":"";
+ if(!mime)return {err:"Only PDF, JPG, PNG or WEBP files can be uploaded."};
+ const ext={"application/pdf":"pdf","image/jpeg":"jpg","image/png":"png","image/webp":"webp"}[mime];let name=str(b.name,120).replace(/[\\/:*?"<>|\u0000-\u001f]/g,"_")||"report";if(!name.toLowerCase().endsWith("."+ext))name=name.replace(/\.[a-z0-9]{1,5}$/i,"")+"."+ext;
+ return {buf,mime,name}};
+const rKind=k=>RKINDS.includes(k)?k:"Other";
+const rLink=async t=>{if(!/^[a-f0-9]{48}$/.test(t||""))return null;return one("SELECT l.*,(SELECT COUNT(*)::int FROM reports r WHERE r.cid=l.cid AND r.pid=l.pid AND r.src='patient' AND r.created>=l.created) used FROM report_links l WHERE l.th=$1 AND l.exp>now()",[sha(t)])};
+const UPL=fs.readFileSync(path.join(__dirname,"public/upload.html"),"utf8");
+app.get("/u/:t",A(async(q,s)=>{s.set({"Cache-Control":"no-store","Referrer-Policy":"no-referrer"});const l=await rLink(q.params.t);
+ if(!l)return s.status(404).type("text").send("This upload link has expired or is not valid. Please ask the clinic to send a new one.");
+ const c=await clinic(l.cid);s.type("html").send(UPL.replace("{{HEADER}}",()=>regHead(c)).replaceAll("{{CLINIC}}",()=>E(c.name||"Clinic")))}));
+app.get("/api/public/report-link/:t",A(async(q,s)=>{const l=await rLink(q.params.t);if(!l)return s.status(404).json({error:"This upload link has expired or is not valid."});
+ const p=await one("SELECT data->>'name' n FROM docs WHERE cid=$1 AND coll='patients' AND id=$2",[l.cid,l.pid]);if(!p)return s.status(404).json({error:"This upload link is no longer valid."});
+ s.set("Cache-Control","no-store").json({first:String(p.n||"").trim().split(/\s+/)[0],kind:l.kind,kinds:RKINDS,left:Math.max(0,RLINK_MAX-l.used),exp:l.exp})}));
+app.post("/api/public/report-link/:t",A(async(q,s)=>{if(limited("rup:"+q.ip,30,36e5))return s.status(429).json({error:"Too many uploads. Please try again later."});
+ const l=await rLink(q.params.t);if(!l)return s.status(404).json({error:"This upload link has expired or is not valid."});if(l.used>=RLINK_MAX)return s.status(429).json({error:`This link has already been used for ${RLINK_MAX} files. Please ask the clinic for a new link.`});
+ if(!await one("SELECT 1 FROM docs WHERE cid=$1 AND coll='patients' AND id=$2",[l.cid,l.pid]))return s.status(404).json({error:"This upload link is no longer valid."});
+ const f=rFile(q.body||{});if(f.err)return s.status(400).json({error:f.err});
+ await Q("INSERT INTO reports(cid,pid,kind,name,mime,size,data,src) VALUES($1,$2,$3,$4,$5,$6,$7,'patient')",[l.cid,l.pid,rKind((q.body||{}).kind||l.kind),f.name,f.mime,f.buf.length,f.buf]);s.json({ok:true,left:Math.max(0,RLINK_MAX-l.used-1)})}));
 
 /* auth */
 const sameStr=(a,b)=>crypto.timingSafeEqual(crypto.createHash("sha256").update(String(a)).digest(),crypto.createHash("sha256").update(String(b)).digest());
@@ -241,7 +269,7 @@ app.delete("/api/admin/clinics/:id",adm,A(async(q,s)=>{const id=uid(q.params.id)
 app.use("/api",A(async(q,s,n)=>{q.u=await who(q);q.u?n():s.status(401).json({error:"Please sign in"})}));
 const need=r=>(q,s,n)=>q.u.role===r?n():s.status(403).json({error:"Only a doctor can do this"});
 /* until clinic setup is finished, nothing can be created or changed except the clinic profile itself */
-const GATED=/^\/(patients|appts|rx|bills|visits|registrations|import|users|sig)(\/|$)/;
+const GATED=/^\/(patients|appts|rx|bills|visits|registrations|import|users|sig|reports)(\/|$)/;
 app.use("/api",(q,s,n)=>q.u.setup||q.method==="GET"||!GATED.test(q.path)?n():s.status(409).json({error:"Please finish clinic setup first.",setup_required:true}));
 
 app.get("/api/data",A(async(q,s)=>{const d=q.u.role==="doctor";
@@ -334,6 +362,19 @@ function cleanPrices(a){const seen=new Set(),o=[];for(const x of (Array.isArray(
  const r=x.r===""||x.r==null?"":Math.round(Math.max(0,Math.min(1e7,+x.r||0))*100)/100;o.push({id:str(x.id,20)||"p"+o.length,n,c,r,on:x.on!==false})}return o}
 /* delete one invoice row (doctor only) */
 app.delete("/api/bills/:id",need("doctor"),A(async(q,s)=>{const id=str(q.params.id,20);const r=await Q("DELETE FROM docs WHERE cid=$1 AND coll='bills' AND id=$2",[q.u.cid,id]);if(!r.rowCount)return s.status(404).json({error:"Not found"});await audit(q.u,"bill_delete",id);s.json({ok:true})}));
+/* reports for one patient (any signed-in user of the clinic; delete is doctor only) */
+const RCOLS="id,pid,kind,name,mime,size,src,created,(SELECT name FROM users WHERE id=reports.uid) uname";
+app.get("/api/reports/:pid",A(async(q,s)=>{s.json((await Q(`SELECT ${RCOLS} FROM reports WHERE cid=$1 AND pid=$2 ORDER BY created DESC,id DESC`,[q.u.cid,str(q.params.pid,20)])).rows)}));
+app.post("/api/reports/:pid",A(async(q,s)=>{const pid=str(q.params.pid,20);if(!await one("SELECT 1 FROM docs WHERE cid=$1 AND coll='patients' AND id=$2",[q.u.cid,pid]))return s.status(404).json({error:"Patient not found"});
+ const f=rFile(q.body||{});if(f.err)return s.status(400).json({error:f.err});
+ const r=await one(`INSERT INTO reports(cid,pid,kind,name,mime,size,data,src,uid) VALUES($1,$2,$3,$4,$5,$6,$7,'clinic',$8) RETURNING ${RCOLS}`,[q.u.cid,pid,rKind(q.body.kind),f.name,f.mime,f.buf.length,f.buf,q.u.id]);await audit(q.u,"report_add",pid);s.json(r)}));
+app.post("/api/reports/:pid/link",A(async(q,s)=>{const pid=str(q.params.pid,20);if(!await one("SELECT 1 FROM docs WHERE cid=$1 AND coll='patients' AND id=$2",[q.u.cid,pid]))return s.status(404).json({error:"Patient not found"});
+ const t=crypto.randomBytes(24).toString("hex");await Q("DELETE FROM report_links WHERE exp<now()");await Q("INSERT INTO report_links(th,cid,pid,kind,exp) VALUES($1,$2,$3,$4,now()+interval '7 days')",[sha(t),q.u.cid,pid,rKind((q.body||{}).kind)]);
+ await audit(q.u,"report_link",pid);s.json({url:base(q)+"/u/"+t,days:7,max:RLINK_MAX})}));
+app.get("/api/report-file/:id",A(async(q,s)=>{const id=/^\d{1,18}$/.test(q.params.id)?q.params.id:"0",r=await one("SELECT name,mime,data FROM reports WHERE cid=$1 AND id=$2",[q.u.cid,id]);if(!r)return s.status(404).type("text").send("Report not found");
+ s.removeHeader("Content-Security-Policy");s.set({"Content-Type":r.mime,"Content-Disposition":`${q.query.dl?"attachment":"inline"}; filename="${r.name.replace(/[^\x20-\x7e]/g,"_").replace(/"/g,"")}"; filename*=UTF-8''${encodeURIComponent(r.name)}`,"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"}).send(r.data)}));
+app.delete("/api/reports/:id",need("doctor"),A(async(q,s)=>{const id=/^\d{1,18}$/.test(q.params.id)?q.params.id:"0",r=await one("DELETE FROM reports WHERE cid=$1 AND id=$2 RETURNING pid",[q.u.cid,id]);if(!r)return s.status(404).json({error:"Not found"});await audit(q.u,"report_delete",r.pid);s.json({ok:true})}));
+
 /* records: patients, appts, rx (doctor only), bills */
 const coll=(q,s,n)=>{if(!PFX[q.params.c])return s.status(404).json({error:"Unknown collection"});if(q.params.c==="rx"&&q.u.role!=="doctor")return s.status(403).json({error:"Only a doctor can do this"});
  const j=q.body&&typeof q.body==="object"&&!Array.isArray(q.body)?JSON.stringify(q.body):"";if(!j||j.length>1e5||j.includes("\\u0000"))return s.status(400).json({error:"Bad data"});n()};
@@ -342,7 +383,7 @@ app.delete("/api/visits/:id",need("doctor"),A(async(q,s)=>{const id=str(q.params
  const r=await tx(async c=>{const v=(await c.query("DELETE FROM docs WHERE cid=$1 AND coll='visits' AND id=$2 RETURNING id",[cid,id])).rowCount;if(!v)return null;
   const b=(await c.query("DELETE FROM docs WHERE cid=$1 AND coll='bills' AND data->>'vid'=$2 AND COALESCE(jsonb_array_length(data->'pays'),0)=0 RETURNING id",[cid,id])).rows[0];return {billDeleted:b?b.id:null}});
  if(!r)return s.status(404).json({error:"Visit not found"});await audit(q.u,"visit_delete",id);s.json({ok:true,...r})}));
-app.delete("/api/patients/:id",need("doctor"),A(async(q,s)=>{const id=q.params.id,cid=q.u.cid;await tx(async c=>{await c.query("DELETE FROM docs WHERE cid=$1 AND coll IN ('patients','sigs') AND id=$2",[cid,id]);await c.query("DELETE FROM docs WHERE cid=$1 AND coll IN ('visits','rx','bills','appts') AND data->>'pid'=$2",[cid,id])});await audit(q.u,"patient_delete",id);s.json({ok:true})}));
+app.delete("/api/patients/:id",need("doctor"),A(async(q,s)=>{const id=q.params.id,cid=q.u.cid;await tx(async c=>{await c.query("DELETE FROM docs WHERE cid=$1 AND coll IN ('patients','sigs') AND id=$2",[cid,id]);await c.query("DELETE FROM docs WHERE cid=$1 AND coll IN ('visits','rx','bills','appts') AND data->>'pid'=$2",[cid,id]);await c.query("DELETE FROM reports WHERE cid=$1 AND pid=$2",[cid,id]);await c.query("DELETE FROM report_links WHERE cid=$1 AND pid=$2",[cid,id])});await audit(q.u,"patient_delete",id);s.json({ok:true})}));
 app.post("/api/:c",coll,A(async(q,s)=>{const id=await nextId(q.u.cid,q.params.c),d={...q.body,id};if(q.params.c==="visits"&&q.u.role!=="doctor")CLIN.forEach(k=>delete d[k]);if(q.params.c==="rx"||q.params.c==="bills")d.no=id;
  await Q("INSERT INTO docs(cid,coll,id,data) VALUES($1,$2,$3,$4)",[q.u.cid,q.params.c,id,JSON.stringify(d)]);await audit(q.u,"create",id);s.json(d)}));
 app.put("/api/:c/:id",coll,A(async(q,s)=>{const d={...q.body,id:q.params.id};if(q.params.c==="visits"&&q.u.role!=="doctor"){const o=await one("SELECT data FROM docs WHERE cid=$1 AND coll='visits' AND id=$2",[q.u.cid,q.params.id]);CLIN.forEach(k=>{delete d[k];if(o&&o.data[k]!==undefined)d[k]=o.data[k]})}if(q.params.c==="rx"||q.params.c==="bills")d.no=q.params.id;

@@ -1,0 +1,29 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Send your reports · {{CLINIC}}</title>
+<style>:root{--bg:#f3f6f4;--card:#fff;--ink:#17261f;--mut:#667a70;--line:#dce5e0;--pri:#1f7a52;--pi:#fff;--bad:#b3261e;--ok:#1f7a52}@media(prefers-color-scheme:dark){:root{--bg:#0f1713;--card:#18231d;--ink:#e6efe9;--mut:#93a89c;--line:#2a3a31;--pri:#47b583;--pi:#06210f;--bad:#f2837c;--ok:#47b583;color-scheme:dark}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}main{max-width:520px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}h1{font-size:20px;margin:0 0 2px}p{margin:0 0 12px;color:var(--mut)}label{display:block;font-size:13px;color:var(--mut);margin:14px 0 4px}
+select{width:100%;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+.btn{display:block;width:100%;margin-top:14px;background:var(--pri);color:var(--pi);border:0;padding:13px;border-radius:8px;font:inherit;font-weight:600;cursor:pointer;text-align:center}.btn.o{background:none;color:var(--pri);border:1px solid var(--pri)}.btn[aria-disabled=true]{opacity:.6;pointer-events:none}
+.hd{text-align:center;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--line)}.hd img{display:block;max-height:64px;max-width:200px;margin:0 auto 8px}.hd .tg{color:var(--pri);font-weight:600;font-size:14px}.hd .ad{color:var(--mut);font-size:13px;margin-top:6px}
+.hi{font-size:17px;font-weight:600;margin:4px 0 6px}.fl{list-style:none;margin:14px 0 0;padding:0}.fl li{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:14px}.fl .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ok{color:var(--ok)}.bad{color:var(--bad)}.mut{color:var(--mut)}input[type=file]{position:absolute;left:-9999px}.sm{font-size:13px}</style></head>
+<body><main><div class="card"><div class="hd">{{HEADER}}</div>
+<div id="v"><p>Loading…</p></div></div><p class="sm" style="text-align:center;margin-top:12px">Your files go only to {{CLINIC}}.</p></main>
+<script>
+const T=location.pathname.split("/").pop(),$=s=>document.querySelector(s),E=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let L=null,busy=false;
+/* photos are shrunk on the phone before sending, so a 10 MB camera picture still fits under 4 MB */
+const prep=f=>new Promise((ok,no)=>{const rd=new FileReader();rd.onerror=()=>no(new Error("Could not read the file"));rd.onload=()=>{const d=rd.result;
+ if(!/^image\/(jpeg|png|webp|heic|heif)/.test(f.type)||f.size<1.5e6)return ok(d);const im=new Image();im.onerror=()=>ok(d);im.onload=()=>{const k=Math.min(1,2200/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.85))};im.src=d};rd.readAsDataURL(f)});
+function view(){if(!L)return;$("#v").innerHTML=`<div class="hi">Hi ${E(L.first||"there")},</div><p>Send your reports here. A PDF or a photo, up to 4 MB each. You can send ${L.left} more file${L.left===1?"":"s"} with this link.</p>
+ ${L.left?`<label for="k">Type of report</label><select id="k">${L.kinds.map(k=>`<option${k===L.kind?" selected":""}>${E(k)}</option>`).join("")}</select>
+ <label class="btn" for="f" id="pick">Choose files or take a photo</label><input type="file" id="f" accept="application/pdf,image/*" multiple>`:'<p class="bad">This link has been used for the maximum number of files. Please ask the clinic for a new link.</p>'}<ul class="fl" id="fl"></ul>`;
+ const f=$("#f");if(f)f.onchange=()=>send([...f.files])}
+async function send(files){if(busy||!files.length)return;busy=true;L.kind=$("#k").value;const pk=$("#pick");pk.setAttribute("aria-disabled","true");pk.textContent="Sending…";const ul=$("#fl");
+ for(const f of files){const li=document.createElement("li");li.innerHTML=`<span class="n">${E(f.name)}</span><span class="mut">Sending…</span>`;ul.prepend(li);const st=li.lastChild;
+  try{if(L.left<=0)throw new Error("Link limit reached");if(!/^(application\/pdf|image\/)/.test(f.type)&&!/\.(pdf|jpe?g|png|webp)$/i.test(f.name))throw new Error("Only PDF or photos");
+   const data=await prep(f);if(data.length>5.6e6)throw new Error("Larger than 4 MB");
+   const r=await fetch("/api/public/report-link/"+T,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:f.name,kind:$("#k").value,data})}),j=await r.json().catch(()=>({}));
+   if(!r.ok)throw new Error(j.error||"Could not send");L.left=j.left;st.className="ok";st.textContent="✓ Sent"}catch(e){st.className="bad";st.textContent=e.message}}
+ busy=false;const items=$("#fl").innerHTML;view();$("#fl").innerHTML=items}
+fetch("/api/public/report-link/"+T).then(r=>r.json().then(j=>({r,j}))).then(({r,j})=>{if(!r.ok){$("#v").innerHTML=`<p class="bad">${E(j.error||"This link is not valid.")}</p>`;return}L=j;view()}).catch(()=>{$("#v").innerHTML='<p class="bad">Could not load. Please check your internet and try again.</p>'});
+</script></body></html>
