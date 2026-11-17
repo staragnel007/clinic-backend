@@ -181,6 +181,24 @@ app.post("/api/admin/clinics/:id/paid",adm,A(async(q,s)=>{const id=uid(q.params.
  const paid=!(q.body&&q.body.paid===false);
  const r=await one("UPDATE users SET plan=$2 WHERE id=$1 AND role='doctor' RETURNING id",[id,paid?"paid":"trial"]);
  if(!r)return s.status(404).json({error:"Not found"});await audit(null,paid?"admin_paid":"admin_unpaid",String(id));s.json(await one(CL+" AND id=$1",[id]))}));
+/* permanently delete an entry: if this is the clinic's only doctor, the whole clinic goes (staff, patients, visits, Rx, bills, registrations, settings);
+   if the clinic has other doctors, only this doctor's login is removed and the clinic's records stay with them. Clinic 1 (the original clinic) is never wiped. */
+app.get("/api/admin/clinics/:id/impact",adm,A(async(q,s)=>{const id=uid(q.params.id),u=id&&await one("SELECT id,cid FROM users WHERE id=$1 AND role='doctor'",[id]);if(!u)return s.status(404).json({error:"Not found"});
+ const o=await one("SELECT (SELECT COUNT(*)::int FROM users WHERE cid=$1 AND role='doctor' AND id<>$2) docs,(SELECT COUNT(*)::int FROM users WHERE cid=$1 AND role<>'doctor') staff,(SELECT COUNT(*)::int FROM docs WHERE cid=$1 AND coll='patients') patients,(SELECT COUNT(*)::int FROM docs WHERE cid=$1 AND coll='visits') visits,(SELECT COUNT(*)::int FROM docs WHERE cid=$1 AND coll='bills') bills",[u.cid,id]);
+ s.json({...o,whole:o.docs===0,blocked:o.docs===0&&u.cid===1})}));
+app.delete("/api/admin/clinics/:id",adm,A(async(q,s)=>{const id=uid(q.params.id);if(!id)return s.status(404).json({error:"Not found"});
+ const r=await tx(async c=>{const u=(await c.query("SELECT id,cid,username FROM users WHERE id=$1 AND role='doctor' FOR UPDATE",[id])).rows[0];if(!u)return {code:404};
+  await c.query("SELECT 1 FROM clinics WHERE id=$1 FOR UPDATE",[u.cid]);
+  const others=(await c.query("SELECT COUNT(*)::int n FROM users WHERE cid=$1 AND role='doctor' AND id<>$2",[u.cid,id])).rows[0].n;
+  if(others>0){await c.query("DELETE FROM users WHERE id=$1",[id]);return {u,whole:false}}
+  if(u.cid===1)return {code:409};
+  for(const t of ["docs","regs","audit"])await c.query(`DELETE FROM ${t} WHERE cid=$1`,[u.cid]);
+  await c.query("DELETE FROM kv WHERE k LIKE $1",["c"+u.cid+":%"]);
+  await c.query("DELETE FROM clinics WHERE id=$1",[u.cid]); /* cascades to users, then their sessions and reset links */
+  return {u,whole:true}});
+ if(r.code===404)return s.status(404).json({error:"Not found"});
+ if(r.code===409)return s.status(409).json({error:"This is the original clinic (#1) and its only doctor, so it can't be deleted from here."});
+ await audit(null,r.whole?"admin_delete_clinic":"admin_delete_doctor",r.u.username+" (clinic "+r.u.cid+")");s.json({ok:true,whole:r.whole})}));
 app.use("/api",A(async(q,s,n)=>{q.u=await who(q);q.u?n():s.status(401).json({error:"Please sign in"})}));
 const need=r=>(q,s,n)=>q.u.role===r?n():s.status(403).json({error:"Only a doctor can do this"});
 

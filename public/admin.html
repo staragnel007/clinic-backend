@@ -12,14 +12,14 @@ h1{font-size:17px;margin:0}main{max-width:1100px;margin:0 auto;padding:20px 16px
 .card b{display:block;font-size:28px;margin-top:4px}.card span{color:var(--mut);font-size:13px}
 input,button{font:inherit}input{padding:9px 11px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)}
 button{padding:7px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx);cursor:pointer}
-button.p{background:var(--pri);border-color:var(--pri);color:#fff}button:disabled{opacity:.5;cursor:default}
+button.p{background:var(--pri);border-color:var(--pri);color:#fff}button.d{color:var(--bad);border-color:var(--bad)}button.d:hover:not(:disabled){background:var(--bad);color:#fff}button:disabled{opacity:.5;cursor:default}
 .bar{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}.bar input{flex:1;min-width:200px}
 .tw{background:var(--card);border:1px solid var(--bd);border-radius:10px;overflow-x:auto}
 table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--bd);white-space:nowrap}
 th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}tr:last-child td{border-bottom:0}
 .tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600;border:1px solid currentColor}
 .trial{color:var(--warn)}.paid{color:var(--ok)}.expired{color:var(--bad)}
-.act{display:flex;gap:6px}.mut{color:var(--mut)}#msg{margin:0 0 10px;color:var(--bad);min-height:1em}
+.act{display:flex;gap:6px}.mut{color:var(--mut)}#msg{margin:0 0 10px;color:var(--bad);min-height:1em}#msg.ok{color:var(--ok)}
 #login{max-width:340px;margin:12vh auto;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:24px}
 #login input{width:100%;margin:12px 0}[hidden]{display:none!important}
 </style></head><body>
@@ -40,7 +40,7 @@ th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;lett
   <p id="msg"></p>
   <div class="bar"><input id="q" type="search" placeholder="Search by name, username or status…"><button id="rf">Refresh</button></div>
   <div class="tw"><table><thead><tr><th>#</th><th>Doctor</th><th>Username</th><th>Signed up</th><th>Status</th><th>Trial ends</th><th>Days left</th><th>Actions</th></tr></thead><tbody id="tb"></tbody></table></div>
-  <p class="mut" style="font-size:12px">Each row is a doctor account. Extending adds 7 days to the current trial end (or to today if it already ended).</p>
+  <p class="mut" style="font-size:12px">Each row is a doctor account. Extending adds 7 days to the current trial end (or to today if it already ended). Delete permanently removes the doctor and, if they are the clinic's only doctor, the whole clinic with all its data.</p>
  </main>
 </div>
 <script>
@@ -60,11 +60,24 @@ function draw(){var f=$("q").value.trim().toLowerCase(),tb=$("tb");tb.textConten
   var a=el("td"),w=el("div","act");
   var b1=el("button","","+7 days");b1.disabled=r.status==="paid";b1.onclick=function(){act(r,"extend",b1)};w.appendChild(b1);
   var b2=el("button",r.status==="paid"?"":"p",r.status==="paid"?"Unmark paid":"Mark paid");b2.onclick=function(){act(r,"paid",b2,{paid:r.status!=="paid"})};w.appendChild(b2);
+  var b3=el("button","d","Delete");b3.onclick=function(){del(r,b3)};w.appendChild(b3);
   a.appendChild(w);tr.appendChild(a);tb.appendChild(tr)});
  if(!tb.children.length){var t=el("tr"),d=el("td","mut","No clinics found.");d.colSpan=8;t.appendChild(d);tb.appendChild(t)}}
-async function act(r,k,btn,body){$("msg").textContent="";
+async function act(r,k,btn,body){$("msg").textContent="";$("msg").className="";
  if(k==="paid"&&body.paid&&!confirm("Mark "+r.name+" as Paid?"))return;
  btn.disabled=true;try{var u=await api("POST","/api/admin/clinics/"+r.id+"/"+k,body||{});Object.assign(r,u);cards();draw()}catch(e){$("msg").textContent=e.message;btn.disabled=false}}
+async function del(r,btn){$("msg").textContent="";$("msg").className="";btn.disabled=true;
+ try{var i=await api("GET","/api/admin/clinics/"+r.id+"/impact");
+  if(i.blocked){$("msg").textContent="This is the original clinic (#1) and its only doctor, so it can't be deleted from here.";btn.disabled=false;return}
+  var t=i.whole?"PERMANENTLY DELETE the whole clinic of "+r.name+" ("+r.username+")?\n\nThis removes their login"+(i.staff?", "+i.staff+" staff login(s)":"")+", "+i.patients+" patient(s), "+i.visits+" visit(s), "+i.bills+" bill(s), all prescriptions, online registrations and clinic settings.\n\nThis cannot be undone."
+   :"Remove the doctor login "+r.name+" ("+r.username+")?\n\nTheir clinic has "+i.docs+" other doctor(s), so the clinic and its patient records will be kept.";
+  var typed=prompt(t+"\n\nType the username to confirm:");
+  if(typed===null){btn.disabled=false;return}
+  if(typed.trim().toLowerCase()!==String(r.username).toLowerCase()){$("msg").textContent="Username didn't match. Nothing was deleted.";btn.disabled=false;return}
+  var d=await api("DELETE","/api/admin/clinics/"+r.id);
+  rows=rows.filter(function(x){return x.id!==r.id});cards();draw();
+  $("msg").className="ok";$("msg").textContent=(d.whole?"Deleted the clinic of ":"Removed doctor ")+r.name+".";
+ }catch(e){$("msg").textContent=e.message;btn.disabled=false}}
 function cards(){var c={total:rows.length,trial:0,paid:0,expired:0};rows.forEach(function(r){c[r.status]++});for(var k in c)$("s_"+k).textContent=c[k]}
 async function load(){$("msg").textContent="";try{var d=await api("GET","/api/admin/clinics");rows=d.clinics;$("cn").textContent=d.clinicName?"· "+d.clinicName:"";show(true);cards();draw()}catch(e){$("msg").textContent=e.message}}
 $("lf").onsubmit=async function(e){e.preventDefault();$("lerr").textContent="";try{await api("POST","/api/admin/login",{password:$("pw").value});$("pw").value="";load()}catch(x){$("lerr").textContent=x.message}};
