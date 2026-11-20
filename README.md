@@ -153,3 +153,23 @@ restrict access to the database and its backups. Patient data is personal health
 patched and review India's DPDP Act obligations (consent, retention, breach reporting) with your advisor.
 Not included: SMS, two-factor login, an audit viewer (actions are logged in
 the `audit` table).
+
+## Google Drive backup
+
+Settings › **Google Drive Backup** lets a doctor connect a Google account. Every night from about 2 AM (clinic time zone, `CLINIC_TZ`, default Asia/Kolkata) the server saves `MyClinicDesk_Backup_YYYY-MM-DD.zip` to a **MyClinicDesk Backups** folder in that Drive:
+
+- `Patient_Reports/OP-0001_Name.pdf`: one Patient Report per patient (pdfkit)
+- `Clinic_Records_YYYY-MM-DD.xlsx`: Patients, Visits, Prescriptions and Bills sheets (exceljs)
+
+The newest 30 backups are kept. A failed night is retried every hour. **Back Up Now** runs one immediately. It is available on an active trial or the paid plan. The app uses the `drive.file` permission, so it can only see the files it creates. Refresh tokens are stored AES-256-GCM encrypted in the `gdrive` table. PDFs use the built-in PDF fonts, so text in Indian scripts shows as `?` in the PDF but is kept in full in the Excel file.
+
+Setup, using the same Google Cloud project and OAuth client as "Continue with Google":
+
+1. APIs & Services › Library › **Google Drive API** › Enable.
+2. Credentials › your OAuth client › Authorised redirect URIs › add `https://<your-app>/auth/gdrive/callback`.
+3. OAuth consent screen › Data access › add the scope `https://www.googleapis.com/auth/drive.file`.
+4. Railway › Variables › add `GDRIVE_TOKEN_KEY`, a random value of at least 32 characters:
+   `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+   Keep it fixed. If it changes, every clinic has to reconnect Google Drive.
+
+`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `APP_URL` must also be set.

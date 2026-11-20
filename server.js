@@ -30,6 +30,7 @@ CREATE INDEX IF NOT EXISTS reports_cid_pid ON reports(cid,pid);
 CREATE TABLE IF NOT EXISTS report_links(th TEXT PRIMARY KEY,cid INTEGER NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,pid TEXT NOT NULL,kind TEXT NOT NULL,exp TIMESTAMPTZ NOT NULL,created TIMESTAMPTZ NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS shared_docs(th TEXT PRIMARY KEY,cid INTEGER NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,pid TEXT NOT NULL,kind TEXT NOT NULL,ref TEXT,name TEXT NOT NULL,data BYTEA NOT NULL,exp TIMESTAMPTZ NOT NULL,created TIMESTAMPTZ NOT NULL DEFAULT now());
 CREATE INDEX IF NOT EXISTS shared_docs_exp ON shared_docs(exp)`);
+ await GD.init();
  /* one-time move from the single-clinic layout: everything that exists becomes clinic 1 */
  await tx(async c=>{await c.query("SELECT pg_advisory_xact_lock(7002)");if((await c.query("SELECT 1 FROM kv WHERE k='schema' AND v='2'")).rowCount)return;
   if((await c.query("SELECT 1 FROM users WHERE cid IS NULL UNION ALL SELECT 1 FROM docs WHERE cid IS NULL UNION ALL SELECT 1 FROM regs WHERE cid IS NULL LIMIT 1")).rowCount){
@@ -237,6 +238,9 @@ app.get("/auth/google/callback",A(async(q,s)=>{const fail=m=>{console.error("Goo
   catch(e){if(e.code==="23505")return s.redirect("/?auth=google_taken");throw e}}
  await login(s,u.id);await audit(u,"login_google");s.redirect("/")}));
 
+/* Google Drive backup (gdrive.js): connect, nightly zip of Patient Report PDFs + Excel records */
+const GD=require("./gdrive")({Q,one,all,clinic,audit,str,base,who,TZ,SH,GID,GSECRET,A});GD.authRoutes(app);
+
 /* founder / super admin (separate from doctor logins; needs ADMIN_PASSWORD) */
 const ADMIN_PW=process.env.ADMIN_PASSWORD||"",AKEY=crypto.createHash("sha256").update("opd-admin:"+ADMIN_PW).digest();
 const admTok=()=>{const e=Date.now()+288e5;return e+"."+crypto.createHmac("sha256",AKEY).update(String(e)).digest("hex")};
@@ -281,6 +285,7 @@ app.delete("/api/admin/clinics/:id",adm,A(async(q,s)=>{const id=uid(q.params.id)
  await audit(null,r.whole?"admin_delete_clinic":"admin_delete_doctor",r.u.username+" (clinic "+r.u.cid+")");s.json({ok:true,whole:r.whole})}));
 app.use("/api",A(async(q,s,n)=>{q.u=await who(q);q.u?n():s.status(401).json({error:"Please sign in"})}));
 const need=r=>(q,s,n)=>q.u.role===r?n():s.status(403).json({error:"Only a doctor can do this"});
+GD.apiRoutes(app,need);
 /* until clinic setup is finished, nothing can be created or changed except the clinic profile itself */
 const GATED=/^\/(patients|appts|rx|bills|visits|registrations|import|users|sig|reports|shared)(\/|$)/;
 app.use("/api",(q,s,n)=>q.u.setup||q.method==="GET"||!GATED.test(q.path)?n():s.status(409).json({error:"Please finish clinic setup first.",setup_required:true}));
@@ -416,6 +421,7 @@ app.put("/api/:c/:id",coll,A(async(q,s)=>{const d={...q.body,id:q.params.id};if(
 app.use((e,q,s,n)=>{if(e.type==="entity.parse.failed"||e.type==="entity.too.large")return s.status(400).json({error:"Bad request"});console.error(e);s.status(500).json({error:"Server error"})});
 
 (async()=>{await init();DUMMY=await hashPw(crypto.randomBytes(8).toString("hex"));
+ GD.start();
  setInterval(()=>Q("DELETE FROM shared_docs WHERE exp<now()").catch(()=>{}),36e5).unref();
  const srv=app.listen(PORT,()=>console.log("Clinic server running on port "+PORT));
  const stop=()=>srv.close(()=>pool.end().then(()=>process.exit(0)));process.on("SIGTERM",stop);process.on("SIGINT",stop)})()
