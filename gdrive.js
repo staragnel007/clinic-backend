@@ -5,7 +5,9 @@
      Clinic_Records_YYYY-MM-DD.xlsx     Patients, Visits, Prescriptions and Bills sheets (exceljs)
    Uses the drive.file permission: the app sees only the files it creates. The refresh token is stored
    encrypted with GDRIVE_TOKEN_KEY (AES-256-GCM). The newest 30 backups are kept. */
-const crypto=require("crypto"),zlib=require("zlib"),PDFDocument=require("pdfkit"),ExcelJS=require("exceljs");
+const crypto=require("crypto"),zlib=require("zlib");
+/* pdfkit and exceljs are loaded only when a backup runs, so a problem with either library can never stop the app from starting */
+let _pdf,_xl;const PDFDocument=function(o){_pdf=_pdf||require("pdfkit");return new _pdf(o)},XL=()=>(_xl=_xl||require("exceljs"));
 
 module.exports=function(ctx){
 const {Q,one,all,clinic,audit,str,base,who,TZ,SH,GID,GSECRET,A}=ctx;
@@ -133,7 +135,7 @@ const pdfReport=(D,p)=>new Promise((ok,no)=>{const {c,FL}=D,doc=new PDFDocument(
  }catch(e){return no(e)}doc.end()});
 
 /* ---------- Excel workbook ---------- */
-const xlsx=async D=>{const {c,FL,BX}=D,wb=new ExcelJS.Workbook();wb.creator="MyClinicDesk";wb.created=new Date();
+const xlsx=async D=>{const {c,FL,BX}=D,wb=new (XL().Workbook)();wb.creator="MyClinicDesk";wb.created=new Date();
  const P=Object.fromEntries(D.patients.map(p=>[p.id,p])),nm=id=>(P[id]||{}).name||"";
  const sheet=(name,cols,rows)=>{const s=wb.addWorksheet(name,{views:[{state:"frozen",ySplit:1}]});s.columns=cols.map(([header,key,width,fmt])=>({header,key,width:width||16,style:fmt?{numFmt:fmt}:{}}));rows.forEach(r=>s.addRow(r));
   s.getRow(1).font={bold:true,color:{argb:"FFFFFFFF"}};s.getRow(1).fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF1F3B5A"}};s.autoFilter={from:{row:1,column:1},to:{row:1,column:cols.length}};
