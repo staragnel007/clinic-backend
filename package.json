@@ -8,13 +8,18 @@
   },
   "license": "ISC",
   "dependencies": {
+    "exceljs": "^4.4.0",
     "express": "^5.3.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
+    "pdfkit": "^0.21.0",
     "pg": "^8.23.1",
     "qrcode-generator": "^1.4.4"
   },
   "engines": {
     "node": ">=18"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   }
 }
