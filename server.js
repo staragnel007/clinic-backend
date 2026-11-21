@@ -337,6 +337,8 @@ app.put("/api/clinic",need("doctor"),A(async(q,s)=>{const b=q.body||{},o={};for(
  await Q("INSERT INTO kv(k,v) VALUES($1,$2) ON CONFLICT(k) DO UPDATE SET v=excluded.v",["c"+q.u.cid+":clinic",JSON.stringify(o)]);await audit(q.u,"clinic");s.json(await clinic(q.u.cid))}));
 app.post("/api/clinic/setup",need("doctor"),profileRoute(true));
 app.put("/api/clinic/profile",need("doctor"),profileRoute(false));
+/* import a full clinic backup from Excel (importbk.js) */
+require("./importbk")({app,need,A,Q,one,all,tx,clinic,pref,nextId,audit,str,SH,TZ,cleanMeds,cleanPrices,cleanForm,cleanBoxes});
 app.post("/api/import/patients",need("doctor"),A(async(q,s)=>{const rows=Array.isArray(q.body&&q.body.rows)?q.body.rows.slice(0,1000):[];let n=0;
  await tx(async c=>{for(const r of rows){const name=str(r&&r.name,100);if(!name)continue;const ph=str(String(r.ph??""),20).replace(/\D/g,"").slice(-10),dt=/^\d{4}-\d{2}-\d{2}$/.test(r.date||"")?r.date:today();
   const id=await nextId(q.u.cid,"patients",(t,p)=>c.query(t,p)),d={name,age:str(String(r.age??""),3).replace(/\D/g,""),sex:["Male","Female","Other"].includes(r.sex)?r.sex:"",ph:ph.length===10?ph:"",bg:str(r.bg,10),em:str(r.em,150),ad:str(r.ad,400),al:str(r.al,300),hx:str(r.hx,500),id,date:dt};
