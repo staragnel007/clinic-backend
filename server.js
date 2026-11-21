@@ -333,7 +333,7 @@ const lst=(v,n,m)=>(Array.isArray(v)?v:[]).slice(0,n).map(x=>str(x,m)).filter(Bo
 app.put("/api/clinic",need("doctor"),A(async(q,s)=>{const b=q.body||{},o={};for(const [k,n] of Object.entries(SET))o[k]=str(b[k],n);
  for(const k of ["sig","lh"])o[k]=typeof b[k]==="string"&&b[k].length<2.8e6&&IMG.test(b[k])?b[k]:"";
  for(const k of ["opPrefix","invPrefix"])o[k]=/^[A-Za-z0-9-]{1,8}$/.test(str(b[k],8))?str(b[k],8):"";
- o.lang=SH.LANGS.some(x=>x[0]===b.lang)?b.lang:"";o.regForm=cleanForm(b.regForm);o.noteBoxes=lst(b.noteBoxes,10,60);if(Array.isArray(b.boxes))o.boxes=cleanBoxes(b.boxes);o.meds=lst(b.meds,3000,80);if(Array.isArray(b.medlist))o.medlist=cleanMeds(b.medlist);o.prices=cleanPrices(b.prices);
+ o.lang=SH.LANGS.some(x=>x[0]===b.lang)?b.lang:"";o.regForm=cleanForm(b.regForm);o.noteBoxes=lst(b.noteBoxes,10,60);if(Array.isArray(b.boxes))o.boxes=cleanBoxes(b.boxes);o.meds=lst(b.meds,3000,80);if(Array.isArray(b.medlist))o.medlist=cleanMeds(b.medlist);o.prices=cleanPrices(b.prices);o.cardOrder=lst(b.cardOrder,40,60);
  await Q("INSERT INTO kv(k,v) VALUES($1,$2) ON CONFLICT(k) DO UPDATE SET v=excluded.v",["c"+q.u.cid+":clinic",JSON.stringify(o)]);await audit(q.u,"clinic");s.json(await clinic(q.u.cid))}));
 app.post("/api/clinic/setup",need("doctor"),profileRoute(true));
 app.put("/api/clinic/profile",need("doctor"),profileRoute(false));
