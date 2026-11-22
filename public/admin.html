@@ -7,9 +7,9 @@
 *{box-sizing:border-box}body{margin:0;font:14px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--tx)}
 header{background:var(--card);border-bottom:1px solid var(--bd)}.hd{max-width:1320px;margin:0 auto;padding:14px 16px;display:flex;align-items:center;justify-content:space-between}
 h1{font-size:17px;margin:0}main{max-width:1320px;margin:0 auto;padding:20px 16px}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:18px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:16px}
-.card b{display:block;font-size:28px;margin-top:4px}.card span{color:var(--mut);font-size:13px}
+.card b{display:block;font-size:28px;margin-top:4px}.card small{display:block;color:var(--mut);font-size:12px;margin-top:2px}.card span{color:var(--mut);font-size:13px}
 input,button{font:inherit}input{padding:9px 11px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)}
 button{padding:7px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx);cursor:pointer}
 button.p{background:var(--pri);border-color:var(--pri);color:#fff}button.d{color:var(--bad);border-color:var(--bad)}button.d:hover:not(:disabled){background:var(--bad);color:#fff}button:disabled{opacity:.5;cursor:default}
@@ -19,7 +19,7 @@ table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;
 th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}tr:last-child td{border-bottom:0}
 .tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600;border:1px solid currentColor}
 .trial{color:var(--warn)}.paid{color:var(--ok)}.expired{color:var(--bad)}
-.act{display:flex;gap:6px;flex-wrap:nowrap;justify-content:center}th:nth-child(9){text-align:center}.cl b{display:block;font-weight:600}.cl small{color:var(--mut);font-size:12.5px;display:inline-flex;align-items:center;gap:6px}.fu{text-align:center}.fu input{width:18px;height:18px;accent-color:var(--pri);cursor:pointer;margin:0}th:nth-child(8){text-align:center}.wa{color:#25d366;display:inline-flex;padding:2px;border-radius:5px;line-height:0}.wa:hover{background:rgba(37,211,102,.12)}.wa:focus-visible{outline:2px solid #25d366}.ent b{font-weight:600}.mut{color:var(--mut)}#msg{margin:0 0 10px;color:var(--bad);min-height:1em}#msg.ok{color:var(--ok)}
+.act{display:flex;gap:6px;flex-wrap:nowrap;justify-content:center}th:nth-child(9){text-align:center}.cl b{display:block;font-weight:600}.cl small{color:var(--mut);font-size:12.5px;display:flex;align-items:center;gap:6px}.cl .un{display:block;color:var(--mut);font-size:12.5px}.fu{text-align:center}.fu input{width:18px;height:18px;accent-color:var(--pri);cursor:pointer;margin:0}th:nth-child(8){text-align:center}.wa{color:#25d366;display:inline-flex;padding:2px;border-radius:5px;line-height:0}.wa:hover{background:rgba(37,211,102,.12)}.wa:focus-visible{outline:2px solid #25d366}.ent b{font-weight:600}.mut{color:var(--mut)}#msg{margin:0 0 10px;color:var(--bad);min-height:1em}#msg.ok{color:var(--ok)}
 #login{max-width:340px;margin:12vh auto;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:24px}
 #login input{width:100%;margin:12px 0}[hidden]{display:none!important}
 </style></head><body>
@@ -36,6 +36,8 @@ th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;lett
    <div class="card"><span>Active Free Trials</span><b id="s_trial">0</b></div>
    <div class="card"><span>Paid Clinics</span><b id="s_paid">0</b></div>
    <div class="card"><span>Expired Trials</span><b id="s_expired">0</b></div>
+   <div class="card"><span>Signed up last week</span><b id="s_week">0</b><small>Last 7 days</small></div>
+   <div class="card"><span>Signed up last month</span><b id="s_month">0</b><small>Last 30 days</small></div>
   </div>
   <p id="msg"></p>
   <div class="bar"><input id="q" type="search" placeholder="Search by clinic name, phone, or status..."><button id="rf">Refresh</button></div>
@@ -58,11 +60,11 @@ var WA='<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path
 function fp(p){var d=String(p||"").replace(/\D/g,"");return d.length===10?d.slice(0,5)+" "+d.slice(5):p||""}
 function draw(){var f=$("q").value.trim().toLowerCase(),fd2=f.replace(/\D/g,""),tb=$("tb");tb.textContent="";
  rows.filter(function(r){if(!f)return true;var st=r.status==="trial"?"free trial":r.status;
-  return (cn(r)+" "+(r.phone||"")+" "+fp(r.phone)+" "+st).toLowerCase().indexOf(f)>=0||(fd2.length>=3&&String(r.phone||"").replace(/\D/g,"").indexOf(fd2)>=0)}).forEach(function(r){
+  return (cn(r)+" "+r.username+" "+(r.phone||"")+" "+fp(r.phone)+" "+st).toLowerCase().indexOf(f)>=0||(fd2.length>=3&&String(r.phone||"").replace(/\D/g,"").indexOf(fd2)>=0)}).forEach(function(r){
   var tr=el("tr");tr.appendChild(el("td","",r.id));
   var c=el("td","cl");c.appendChild(el("b","",cn(r)));var ph=el("small","",r.phone?fp(r.phone):"No phone added"),wn=wa(r.phone);
   if(wn){var w0=document.createElement("a");w0.className="wa";w0.href="whatsapp://send?phone="+wn;w0.title="Chat on WhatsApp";w0.setAttribute("aria-label","Chat with "+cn(r)+" on WhatsApp");w0.innerHTML=WA;ph.appendChild(w0)}
-  c.appendChild(ph);tr.appendChild(c);
+  c.appendChild(ph);c.appendChild(el("span","un",r.username));tr.appendChild(c);
   var en=el("td","ent");en.appendChild(el("b","",String(r.patients||0)));tr.appendChild(en);
   tr.appendChild(el("td","mut",fd(r.created)));
   var st=el("td");st.appendChild(el("span","tag "+r.status,r.status==="trial"?"Free trial":r.status==="paid"?"Paid":"Expired"));tr.appendChild(st);
@@ -100,7 +102,7 @@ async function del(r,btn){say("");btn.disabled=true;
   rows=rows.filter(function(x){return x.id!==r.id});cards();draw();
   say(d.whole?"Deleted the clinic "+cn(r)+".":"Removed doctor "+r.name+" from "+cn(r)+".",true);
  }catch(e){say(e.message);btn.disabled=false}}
-function cards(){var c={total:rows.length,trial:0,paid:0,expired:0};rows.forEach(function(r){c[r.status]++});for(var k in c)$("s_"+k).textContent=c[k]}
+function cards(){var c={total:rows.length,trial:0,paid:0,expired:0,week:0,month:0},now=Date.now();rows.forEach(function(r){c[r.status]++;var age=now-new Date(r.created).getTime();if(age<=7*864e5)c.week++;if(age<=30*864e5)c.month++});for(var k in c)$("s_"+k).textContent=c[k]}
 async function load(){say("");try{var d=await api("GET","/api/admin/clinics");rows=d.clinics;$("cn").textContent=d.clinicName?"· "+d.clinicName:"";show(true);cards();draw()}catch(e){$("msg").textContent=e.message}}
 $("lf").onsubmit=async function(e){e.preventDefault();$("lerr").textContent="";try{await api("POST","/api/admin/login",{password:$("pw").value});$("pw").value="";load()}catch(x){$("lerr").textContent=x.message}};
 $("lo").onclick=async function(){try{await api("POST","/api/admin/logout")}catch(e){}rows=[];show(false)};
