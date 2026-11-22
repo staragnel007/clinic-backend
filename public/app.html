@@ -1008,7 +1008,7 @@ document.addEventListener("keydown",e=>{const gp=e.target.closest&&e.target.clos
 /* actions */
 async function enter(){const d=await api("GET","/api/data");S={...S,...d};ME=d.me;$("#lk").classList.remove("on");document.body.classList.remove("lk");idle();
  const want=ME.setup?"/":"/setup-clinic";if(location.pathname!==want)history.replaceState(null,"",want+(ME.setup?location.hash:""));render();if(ME.setup)gdReturn()}
-async function out(){try{await api("POST","/api/logout")}catch(e){}ME=null;location.replace("https://staragnel007.github.io/my-clinic-desk-website/")}
+async function out(){try{await api("POST","/api/logout")}catch(e){}ME=null;location.replace("https://myclinicdesk.com/")}
 document.addEventListener("click",async e=>{const op=document.querySelector("details.dd[open]");if(op&&!op.contains(e.target))op.open=false;
  const t=e.target.closest("[data-a]");if(!t)return;const a=t.dataset.a,id=t.dataset.id;
  if(a==="close")closeM();else if(a==="print")print();else if(a==="out")out();

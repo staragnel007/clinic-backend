@@ -106,7 +106,7 @@ already printed keep working. Finalise the domain before printing: the QR encode
 - `PGSSL=1`  use SSL to the database (add `PGSSL_STRICT=1` to also verify the certificate)
 - `TRUST_PROXY=1`  when behind a proxy/load balancer so rate limits see real IPs (Docker sets it)
 - `INSECURE_COOKIES=1`  local http testing only; never in production
-- `APP_URL`  public address of the app, e.g. `https://clinic-backend-production-cb12bfed.up.railway.app` (used in Google sign-in and reset links)
+- `APP_URL`  public address of the app, e.g. `https://api.myclinicdesk.com` (used in Google sign-in and reset links)
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`  turn on "Continue with Google" (see below)
 - `RESEND_API_KEY`, `MAIL_FROM`  turn on "Forgot password?" emails, e.g. `MAIL_FROM="Clinic Desk <noreply@yourdomain.com>"`
 - `APP_NAME`  name used in emails, default `Clinic Desk`
