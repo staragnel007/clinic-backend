@@ -254,17 +254,20 @@ app.post("/api/admin/login",A(async(q,s)=>{if(!ADMIN_PW)return s.status(404).jso
  s.append("Set-Cookie",`adm=${admTok()}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${SECURE?"; Secure":""}`);await audit(null,"admin_login");s.json({ok:true})}));
 app.post("/api/admin/logout",(q,s)=>{s.append("Set-Cookie","adm=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0");s.json({ok:true})});
 const adm=(q,s,n)=>admOk(q)?n():s.status(401).json({error:"Admin sign-in required"});
-const CL="SELECT id,username,name,created,plan,trial_end,CASE WHEN plan='paid' THEN 'paid' WHEN trial_end>now() THEN 'trial' ELSE 'expired' END status,CASE WHEN plan='paid' OR trial_end IS NULL THEN NULL ELSE CEIL(EXTRACT(EPOCH FROM (trial_end-now()))/86400)::int END days FROM users WHERE role='doctor'";
+/* one row per doctor account, with its clinic's name and phone and how many patients the clinic has registered */
+const CL="SELECT u.id,u.username,u.name,u.created,u.plan,u.trial_end,c.name clinic,c.phone,(SELECT COUNT(*)::int FROM docs d WHERE d.cid=u.cid AND d.coll='patients') patients,CASE WHEN u.plan='paid' THEN 'paid' WHEN u.trial_end>now() THEN 'trial' ELSE 'expired' END status,CASE WHEN u.plan='paid' OR u.trial_end IS NULL THEN NULL ELSE CEIL(EXTRACT(EPOCH FROM (u.trial_end-now()))/86400)::int END days FROM users u JOIN clinics c ON c.id=u.cid WHERE u.role='doctor'";
 app.get("/api/admin/status",(q,s)=>s.json({ok:admOk(q)}));
-app.get("/api/admin/clinics",adm,A(async(q,s)=>{const rows=(await Q(CL+" ORDER BY id")).rows,c=await clinic(1);
+app.get("/api/admin/clinics",adm,A(async(q,s)=>{const rows=(await Q(CL+" ORDER BY u.id")).rows,c=await clinic(1);
  s.json({clinicName:c.name||"",summary:{total:rows.length,trial:rows.filter(r=>r.status==="trial").length,paid:rows.filter(r=>r.status==="paid").length,expired:rows.filter(r=>r.status==="expired").length},clinics:rows})}));
+/* extend a trial by {days} (1 to 730, e.g. 30 or 365), counted from the current trial end, or from now if it has already ended */
 app.post("/api/admin/clinics/:id/extend",adm,A(async(q,s)=>{const id=uid(q.params.id);if(!id)return s.status(404).json({error:"Not found"});
- const r=await one("UPDATE users SET trial_end=GREATEST(COALESCE(trial_end,now()),now())+interval '7 days' WHERE id=$1 AND role='doctor' AND plan<>'paid' RETURNING id",[id]);
- if(!r)return s.status(409).json({error:"Clinic not found, or it is already paid"});await audit(null,"admin_extend",String(id));s.json(await one(CL+" AND id=$1",[id]))}));
+ const n=q.body&&q.body.days;if(!Number.isInteger(n)||n<1||n>730)return s.status(400).json({error:"days must be a whole number from 1 to 730"});
+ const r=await one("UPDATE users SET trial_end=GREATEST(COALESCE(trial_end,now()),now())+make_interval(days=>$2) WHERE id=$1 AND role='doctor' AND plan<>'paid' RETURNING id",[id,n]);
+ if(!r)return s.status(409).json({error:"Clinic not found, or it is already paid"});await audit(null,"admin_extend",id+" +"+n+"d");s.json(await one(CL+" AND u.id=$1",[id]))}));
 app.post("/api/admin/clinics/:id/paid",adm,A(async(q,s)=>{const id=uid(q.params.id);if(!id)return s.status(404).json({error:"Not found"});
  const paid=!(q.body&&q.body.paid===false);
  const r=await one("UPDATE users SET plan=$2 WHERE id=$1 AND role='doctor' RETURNING id",[id,paid?"paid":"trial"]);
- if(!r)return s.status(404).json({error:"Not found"});await audit(null,paid?"admin_paid":"admin_unpaid",String(id));s.json(await one(CL+" AND id=$1",[id]))}));
+ if(!r)return s.status(404).json({error:"Not found"});await audit(null,paid?"admin_paid":"admin_unpaid",String(id));s.json(await one(CL+" AND u.id=$1",[id]))}));
 /* permanently delete an entry: if this is the clinic's only doctor, the whole clinic goes (staff, patients, visits, Rx, bills, registrations, settings);
    if the clinic has other doctors, only this doctor's login is removed and the clinic's records stay with them. Clinic 1 (the original clinic) is never wiped. */
 app.get("/api/admin/clinics/:id/impact",adm,A(async(q,s)=>{const id=uid(q.params.id),u=id&&await one("SELECT id,cid FROM users WHERE id=$1 AND role='doctor'",[id]);if(!u)return s.status(404).json({error:"Not found"});

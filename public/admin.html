@@ -19,7 +19,7 @@ table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;
 th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}tr:last-child td{border-bottom:0}
 .tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600;border:1px solid currentColor}
 .trial{color:var(--warn)}.paid{color:var(--ok)}.expired{color:var(--bad)}
-.act{display:flex;gap:6px}.mut{color:var(--mut)}#msg{margin:0 0 10px;color:var(--bad);min-height:1em}#msg.ok{color:var(--ok)}
+.act{display:flex;gap:6px;flex-wrap:nowrap}.cl b{display:block;font-weight:600}.cl small{color:var(--mut);font-size:12.5px}.ent b{font-weight:600}.mut{color:var(--mut)}#msg{margin:0 0 10px;color:var(--bad);min-height:1em}#msg.ok{color:var(--ok)}
 #login{max-width:340px;margin:12vh auto;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:24px}
 #login input{width:100%;margin:12px 0}[hidden]{display:none!important}
 </style></head><body>
@@ -38,9 +38,9 @@ th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;lett
    <div class="card"><span>Expired Trials</span><b id="s_expired">0</b></div>
   </div>
   <p id="msg"></p>
-  <div class="bar"><input id="q" type="search" placeholder="Search by name, username or status…"><button id="rf">Refresh</button></div>
-  <div class="tw"><table><thead><tr><th>#</th><th>Doctor</th><th>Username</th><th>Signed up</th><th>Status</th><th>Trial ends</th><th>Days left</th><th>Actions</th></tr></thead><tbody id="tb"></tbody></table></div>
-  <p class="mut" style="font-size:12px">Each row is a doctor account. Extending adds 7 days to the current trial end (or to today if it already ended). Delete permanently removes the doctor and, if they are the clinic's only doctor, the whole clinic with all its data.</p>
+  <div class="bar"><input id="q" type="search" placeholder="Search by clinic name, phone, or status..."><button id="rf">Refresh</button></div>
+  <div class="tw"><table><thead><tr><th>#</th><th>Clinic</th><th>Entries</th><th>Signed up</th><th>Status</th><th>Trial ends</th><th>Days left</th><th>Actions</th></tr></thead><tbody id="tb"></tbody></table></div>
+  <p class="mut" style="font-size:12px">Each row is a doctor account. Extending adds 30 days or 1 year to the current trial end (or to today if it already ended). Delete permanently removes the doctor and, if they are the clinic's only doctor, the whole clinic with all its data.</p>
  </main>
 </div>
 <script>
@@ -51,35 +51,46 @@ async function api(m,u,b){var r=await fetch(u,{method:m,headers:H,credentials:"s
 function show(on){$("login").hidden=on;$("app").hidden=!on}
 function fd(v){return v?new Date(v).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"—"}
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
-function draw(){var f=$("q").value.trim().toLowerCase(),tb=$("tb");tb.textContent="";
- rows.filter(function(r){return!f||(r.name+" "+r.username+" "+r.status).toLowerCase().indexOf(f)>=0}).forEach(function(r){
-  var tr=el("tr");[r.id,r.name,r.username,fd(r.created)].forEach(function(x,i){tr.appendChild(el("td",i>1?"mut":"",x))});
+function cn(r){return r.clinic||r.name||"Unnamed clinic"}
+function fp(p){var d=String(p||"").replace(/\D/g,"");return d.length===10?d.slice(0,5)+" "+d.slice(5):p||""}
+function draw(){var f=$("q").value.trim().toLowerCase(),fd2=f.replace(/\D/g,""),tb=$("tb");tb.textContent="";
+ rows.filter(function(r){if(!f)return true;var st=r.status==="trial"?"free trial":r.status;
+  return (cn(r)+" "+(r.phone||"")+" "+fp(r.phone)+" "+st).toLowerCase().indexOf(f)>=0||(fd2.length>=3&&String(r.phone||"").replace(/\D/g,"").indexOf(fd2)>=0)}).forEach(function(r){
+  var tr=el("tr");tr.appendChild(el("td","",r.id));
+  var c=el("td","cl");c.appendChild(el("b","",cn(r)));c.appendChild(el("small","",r.phone?fp(r.phone):"No phone added"));tr.appendChild(c);
+  var en=el("td","ent"),n=r.patients||0;en.appendChild(el("b","",String(n)));en.appendChild(document.createTextNode(" patient"+(n===1?"":"s")));tr.appendChild(en);
+  tr.appendChild(el("td","mut",fd(r.created)));
   var st=el("td");st.appendChild(el("span","tag "+r.status,r.status==="trial"?"Free trial":r.status==="paid"?"Paid":"Expired"));tr.appendChild(st);
   tr.appendChild(el("td","",r.status==="paid"?"—":fd(r.trial_end)));
   var dl=r.status==="paid"?"—":r.status==="expired"?"Expired":r.days+" day"+(r.days===1?"":"s");tr.appendChild(el("td","",dl));
   var a=el("td"),w=el("div","act");
-  var b1=el("button","","+7 days");b1.disabled=r.status==="paid";b1.onclick=function(){act(r,"extend",b1)};w.appendChild(b1);
+  [[30,"+30 days"],[365,"+1 year"]].forEach(function(x){var b=el("button","",x[1]);b.disabled=r.status==="paid";b.title=r.status==="paid"?"Already paid":"Add "+(x[0]===365?"1 year":"30 days")+" to the trial";b.onclick=function(){ext(r,x[0],b)};w.appendChild(b)});
   var b2=el("button",r.status==="paid"?"":"p",r.status==="paid"?"Unmark paid":"Mark paid");b2.onclick=function(){act(r,"paid",b2,{paid:r.status!=="paid"})};w.appendChild(b2);
   var b3=el("button","d","Delete");b3.onclick=function(){del(r,b3)};w.appendChild(b3);
   a.appendChild(w);tr.appendChild(a);tb.appendChild(tr)});
  if(!tb.children.length){var t=el("tr"),d=el("td","mut","No clinics found.");d.colSpan=8;t.appendChild(d);tb.appendChild(t)}}
-async function act(r,k,btn,body){$("msg").textContent="";$("msg").className="";
- if(k==="paid"&&body.paid&&!confirm("Mark "+r.name+" as Paid?"))return;
- btn.disabled=true;try{var u=await api("POST","/api/admin/clinics/"+r.id+"/"+k,body||{});Object.assign(r,u);cards();draw()}catch(e){$("msg").textContent=e.message;btn.disabled=false}}
-async function del(r,btn){$("msg").textContent="";$("msg").className="";btn.disabled=true;
+function say(t,ok){$("msg").className=ok?"ok":"";$("msg").textContent=t}
+async function ext(r,days,btn){say("");btn.disabled=true;
+ try{var u=await api("POST","/api/admin/clinics/"+r.id+"/extend",{days:days});Object.assign(r,u);cards();draw();say("Extended "+cn(r)+"'s trial by "+(days===365?"1 year":days+" days"),true)}
+ catch(e){say(e.message);btn.disabled=false}}
+async function act(r,k,btn,body){say("");
+ if(k==="paid"&&body.paid&&!confirm("Mark "+cn(r)+" as Paid?"))return;
+ btn.disabled=true;try{var u=await api("POST","/api/admin/clinics/"+r.id+"/"+k,body||{});Object.assign(r,u);cards();draw()}catch(e){say(e.message);btn.disabled=false}}
+async function del(r,btn){say("");btn.disabled=true;
  try{var i=await api("GET","/api/admin/clinics/"+r.id+"/impact");
-  if(i.blocked){$("msg").textContent="This is the original clinic (#1) and its only doctor, so it can't be deleted from here.";btn.disabled=false;return}
-  var t=i.whole?"PERMANENTLY DELETE the whole clinic of "+r.name+" ("+r.username+")?\n\nThis removes their login"+(i.staff?", "+i.staff+" staff login(s)":"")+", "+i.patients+" patient(s), "+i.visits+" visit(s), "+i.bills+" bill(s), all prescriptions, online registrations and clinic settings.\n\nThis cannot be undone."
-   :"Remove the doctor login "+r.name+" ("+r.username+")?\n\nTheir clinic has "+i.docs+" other doctor(s), so the clinic and its patient records will be kept.";
-  var typed=prompt(t+"\n\nType the username to confirm:");
+  if(i.blocked){say("This is the original clinic (#1) and its only doctor, so it can't be deleted from here.");btn.disabled=false;return}
+  var who=cn(r)+" (doctor: "+r.name+", "+r.username+")";
+  var t=i.whole?"PERMANENTLY DELETE the whole clinic "+who+"?\n\nThis removes their login"+(i.staff?", "+i.staff+" staff login(s)":"")+", "+i.patients+" patient(s), "+i.visits+" visit(s), "+i.bills+" bill(s), all prescriptions, online registrations and clinic settings.\n\nThis cannot be undone."
+   :"Remove the doctor login "+r.name+" ("+r.username+") from "+cn(r)+"?\n\nThe clinic has "+i.docs+" other doctor(s), so the clinic and its patient records will be kept.";
+  var typed=prompt(t+"\n\nType DELETE to confirm:");
   if(typed===null){btn.disabled=false;return}
-  if(typed.trim().toLowerCase()!==String(r.username).toLowerCase()){$("msg").textContent="Username didn't match. Nothing was deleted.";btn.disabled=false;return}
+  if(typed.trim()!=="DELETE"){say("You didn't type DELETE. Nothing was deleted.");btn.disabled=false;return}
   var d=await api("DELETE","/api/admin/clinics/"+r.id);
   rows=rows.filter(function(x){return x.id!==r.id});cards();draw();
-  $("msg").className="ok";$("msg").textContent=(d.whole?"Deleted the clinic of ":"Removed doctor ")+r.name+".";
- }catch(e){$("msg").textContent=e.message;btn.disabled=false}}
+  say(d.whole?"Deleted the clinic "+cn(r)+".":"Removed doctor "+r.name+" from "+cn(r)+".",true);
+ }catch(e){say(e.message);btn.disabled=false}}
 function cards(){var c={total:rows.length,trial:0,paid:0,expired:0};rows.forEach(function(r){c[r.status]++});for(var k in c)$("s_"+k).textContent=c[k]}
-async function load(){$("msg").textContent="";try{var d=await api("GET","/api/admin/clinics");rows=d.clinics;$("cn").textContent=d.clinicName?"· "+d.clinicName:"";show(true);cards();draw()}catch(e){$("msg").textContent=e.message}}
+async function load(){say("");try{var d=await api("GET","/api/admin/clinics");rows=d.clinics;$("cn").textContent=d.clinicName?"· "+d.clinicName:"";show(true);cards();draw()}catch(e){$("msg").textContent=e.message}}
 $("lf").onsubmit=async function(e){e.preventDefault();$("lerr").textContent="";try{await api("POST","/api/admin/login",{password:$("pw").value});$("pw").value="";load()}catch(x){$("lerr").textContent=x.message}};
 $("lo").onclick=async function(){try{await api("POST","/api/admin/logout")}catch(e){}rows=[];show(false)};
 $("q").oninput=draw;$("rf").onclick=load;
