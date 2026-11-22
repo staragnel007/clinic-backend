@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Clinic Desk</title>
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#1f6f50">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="MyClinicDesk"><meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 :root{--bg:#f6f3ee;--grad:#fbe8df;--card:#fff;--ink:#14231c;--mut:#6c7b73;--line:#e4e8e3;--pri:#1a5c3f;--pi:#fff;--soft:#e6f1ea;--bad:#b3261e;--warn:#9a6700;--ok:#1f9d55}
 @media(prefers-color-scheme:dark){:root{--bg:#0f1713;--grad:#1a2420;--card:#18231d;--ink:#e6efe9;--mut:#93a89c;--line:#2a3a31;--pri:#47b583;--pi:#06210f;--soft:#183328;--bad:#f2837c;--warn:#e3b341;--ok:#47b583;color-scheme:dark}}
@@ -114,6 +117,15 @@ display:block;width:100%;height:170px;background:#fff;border:1px solid var(--lin
 @media(max-width:1000px){.sw{grid-template-columns:1fr}.sw-p{position:static;order:-1}}@media(max-width:560px){.sg{grid-template-columns:1fr}}
 @page{size:A4;margin:12mm}
 @media print{html,body{background:#fff!important}body>*:not(#md){display:none!important}#md{position:static;background:none;padding:0}#mb{max-width:none;padding:0}.mbar{display:none!important}.tapbox,.pdfbox{display:none!important}#doc{padding:0}.cedit{display:none!important}.cwrap{display:block;margin:0}#doc.cdoc{box-shadow:none;min-height:0;padding:0}}
+/* install app prompt */
+.pwa{text-align:center}.pwa .pi{width:72px;height:72px;border-radius:16px;display:block;margin:2px auto 14px;box-shadow:0 6px 18px rgba(31,111,80,.25)}
+.pwa h2{margin:0 0 6px;font-size:21px}.pwa .ps{margin:0 auto 18px;max-width:420px}
+.pwa ol{list-style:none;padding:0;margin:0 auto 18px;max-width:440px;text-align:left;display:grid;gap:10px}
+.pwa li{display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--soft)}
+.pwa li>b{flex:none;width:28px;height:28px;border-radius:50%;background:var(--pri);color:var(--pi);display:grid;place-items:center;font-size:14px}
+.pwa .ki{display:inline-flex;vertical-align:-5px;color:var(--pri);margin:0 2px}.pwa .ki svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.pwa .pb{display:flex;flex-direction:column;gap:8px;align-items:center}.pwa .pb .btn{min-width:240px;padding:12px 20px}.pwa .later{background:none;border:0;color:var(--mut);font:inherit;cursor:pointer;padding:8px;text-decoration:underline}
+.pwa .done{color:var(--ok);font-weight:600;margin:0 0 16px}
 </style></head><body class="lk">
 <header id="hd" class="hide"></header><main id="app"></main>
 <div id="md" class="hide"><div id="mb"></div></div><div id="lk"></div><div id="toast" class="hide"></div>
@@ -142,6 +154,39 @@ const selv=(id,l,o,v)=>`<div><label>${l}</label><select id="${id}">${o.map(x=>`<
 const bt=(a,id,t,c="s",x="")=>`<button class="btn ${c}" data-a="${a}" data-id="${id}" ${x}>${t}</button>`,rows=(a,e,n=5)=>a.length?a.join(""):`<tr><td colspan="${n}" class="mut">${e}</td></tr>`;
 const BG=["Unknown","A+","A-","B+","B-","AB+","AB-","O+","O-"],g=i=>($("#"+i)?$("#"+i).value.trim():""),psel=v=>`<option value="">Select patient</option>`+S.patients.map(p=>`<option value="${p.id}"${p.id===v?" selected":""}>${p.id} – ${E(p.name)} (${E(p.ph)})</option>`).join("");
 const modal=(h,w)=>{$("#mb").className=w?"wide":"";$("#mb").innerHTML=h;$("#md").classList.remove("hide")},closeM=()=>$("#md").classList.add("hide");
+/* ---- installable app (PWA): register the service worker and offer "Install App Shortcut" ---- */
+let BIP=null;const PWAK={seen:"mcd_pwa_seen",inst:"mcd_pwa_installed"},ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("/service-worker.js").catch(()=>{}));
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();BIP=e;pwaRefresh()});
+addEventListener("appinstalled",()=>{BIP=null;ls.set(PWAK.inst,"1");pwaRefresh();flash("MyClinicDesk is installed. Look for the icon on your desktop or home screen.")});
+const pwaStandalone=()=>matchMedia("(display-mode: standalone)").matches||matchMedia("(display-mode: window-controls-overlay)").matches||navigator.standalone===true;
+const pwaEnv=()=>{const u=navigator.userAgent,ios=/iPad|iPhone|iPod/.test(u)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+ return ios?"ios":/Android/i.test(u)?"android":/Firefox\//.test(u)?"firefox":/Safari\//.test(u)&&/Macintosh/.test(u)&&!/Chrome|Chromium|Edg\//.test(u)?"macsafari":/Edg\//.test(u)?"edge":"desktop"};
+const KI={share:'<span class="ki" aria-label="Share"><svg viewBox="0 0 24 24"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg></span>',
+ add:'<span class="ki" aria-label="Add"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 8v8M8 12h8"/></svg></span>',
+ inst:'<span class="ki" aria-label="Install"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M12 7v6M9 10l3 3 3-3M8 21h8"/></svg></span>',
+ dots:'<span class="ki" aria-label="Menu"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="19" r="1.3" fill="currentColor"/></svg></span>'};
+const pwaSteps=()=>{const st=(a,b)=>`<ol><li><b>1</b><span>${a}</span></li><li><b>2</b><span>${b}</span></li></ol>`;
+ switch(pwaEnv()){
+  case "ios":return st(`Tap the <b>Share</b> icon ${KI.share} (at the bottom in Safari, top right in Chrome).`,`Scroll down and tap <b>Add to Home Screen</b> ${KI.add}, then tap <b>Add</b>.`);
+  case "android":return st(`Tap the browser menu ${KI.dots} at the top right.`,`Tap <b>Install app</b> or <b>Add to Home screen</b>, then <b>Install</b>.`);
+  case "macsafari":return st(`In the menu bar at the top of the screen, click <b>File</b>.`,`Click <b>Add to Dock</b>, then <b>Add</b>.`);
+  case "firefox":return `<p class="mut ps">Firefox can't add app shortcuts. Open <b>${E(location.host)}</b> in <b>Google Chrome</b> or <b>Microsoft Edge</b> and install it from there.</p>`;
+  case "edge":return st(`Click the install icon ${KI.inst} at the right end of the address bar, or open the menu <b>···</b> → <b>Apps</b>.`,`Click <b>Install</b> (or <b>Install this site as an app</b>).`);
+  default:return st(`Click the install icon ${KI.inst} at the right end of the address bar, or open the menu ${KI.dots} → <b>Cast, save and share</b>.`,`Click <b>Install</b> (or <b>Install page as app</b>).`)}};
+const pwaBody=()=>{const later=`<button class="later" data-a="pwalater">Maybe later</button>`;
+ if(pwaStandalone())return `<p class="done">✓ You're already using the MyClinicDesk app.</p><div class="pb"><button class="btn" data-a="pwalater">Close</button></div>`;
+ if(BIP)return `<div class="pb"><button class="btn" data-a="pwainstall">Install App Shortcut</button>${later}</div>`;
+ const was=ls.get(PWAK.inst)?`<p class="done">✓ Already installed on this device. Look for the MyClinicDesk icon, or follow these steps to add it again.</p>`:"";
+ return `${was}${pwaSteps()}<div class="pb">${later}</div>`};
+function pwaModal(){ls.set(PWAK.seen,"1");modal(`<div class="pwa" id="pwa"><img class="pi" src="/icons/icon-192.png" alt="MyClinicDesk app icon" width="72" height="72"><h2>Add MyClinicDesk to your Desktop or Home Screen</h2><p class="mut ps">Open your clinic dashboard in one click—no browser tabs needed.</p><div id="pwa-b">${pwaBody()}</div></div>`)}
+function pwaRefresh(){const b=$("#pwa-b");if(b&&!$("#md").classList.contains("hide"))b.innerHTML=pwaBody();const c=$("#pwa-set");if(c)c.innerHTML=pwaSetTxt()}
+const pwaSetTxt=()=>`<b>Install Desktop / Mobile App</b><br><span class="mut">${pwaStandalone()?"You're using the installed app on this device.":"Put a MyClinicDesk icon on this computer's desktop or your phone's home screen, so the dashboard opens in one click."}</span>`;
+/* shown once, right after a new clinic finishes setup */
+const pwaAfterSignup=()=>{if(pwaStandalone()||ls.get(PWAK.seen))return;setTimeout(()=>{if($("#md").classList.contains("hide"))pwaModal()},600)};
+document.addEventListener("click",async e=>{const t=e.target.closest("[data-a=pwainstall],[data-a=pwalater],[data-a=pwaopen]");if(!t)return;const a=t.dataset.a;
+ if(a==="pwaopen")pwaModal();else if(a==="pwalater")closeM();
+ else if(a==="pwainstall"&&BIP){const p=BIP;BIP=null;t.disabled=true;try{await p.prompt();const r=await p.userChoice;if(r&&r.outcome==="accepted"){ls.set(PWAK.inst,"1");closeM()}else pwaRefresh()}catch(x){pwaRefresh()}}});
 const show=(h,s)=>{SEND=s||null;modal(`<div class="mbar"><button class="btn" data-a="print">Print</button>${s?`<button class="btn o" data-a="wapdf">Send on WhatsApp</button>`:""}<button class="btn o" data-a="close">Close</button></div><div id="doc">${h}</div>`,1);};
 
 /* printable documents */
@@ -493,7 +538,7 @@ const SC=[["reg","Registration Form","Add, remove or reorder the fields patients
 let ST="profile",IMP=[],IMPX=null;
 const saveClinic=async p=>{S.clinic=await api("PUT","/api/clinic",{...S.clinic,...p})};
 function sett(){if(!isDoc()){location.hash="#/";return}
- $("#app").innerHTML=`<div class="crumb"><a href="#/">${UI.home}<span>Dashboard</span></a> › Settings</div><h1 style="margin-bottom:16px">Settings</h1>${SC.map(x=>`<button class="scard" data-a="sc" data-id="${x[0]}"><span><b>${x[1]}</b><br><span class="mut">${x[2]}</span>${x[0]==="lang"?`<br><span class="chip" style="font-size:12.5px;margin-top:6px;display:inline-block">${langName()}</span>`:""}</span><span style="color:var(--pri)">→</span></button>`).join("")}<div class="tabs">${[["profile","Clinic Profile"],["team",`Team (${S.users.length})`],["ids","Patient &amp; Invoice Numbers"]].map(t=>`<a href="#" class="${t[0]===ST?"on":""}" data-a="stab" data-id="${t[0]}">${t[1]}</a>`).join("")}</div><div id="st"></div>`;stab()}
+ $("#app").innerHTML=`<div class="crumb"><a href="#/">${UI.home}<span>Dashboard</span></a> › Settings</div><h1 style="margin-bottom:16px">Settings</h1>${SC.map(x=>`<button class="scard" data-a="sc" data-id="${x[0]}"><span><b>${x[1]}</b><br><span class="mut">${x[2]}</span>${x[0]==="lang"?`<br><span class="chip" style="font-size:12.5px;margin-top:6px;display:inline-block">${langName()}</span>`:""}</span><span style="color:var(--pri)">→</span></button>`).join("")}<button class="scard" data-a="pwaopen"><span id="pwa-set">${pwaSetTxt()}</span><span style="color:var(--pri)">→</span></button><div class="tabs">${[["profile","Clinic Profile"],["team",`Team (${S.users.length})`],["ids","Patient &amp; Invoice Numbers"]].map(t=>`<a href="#" class="${t[0]===ST?"on":""}" data-a="stab" data-id="${t[0]}">${t[1]}</a>`).join("")}</div><div id="st"></div>`;stab()}
 function stab(){document.querySelectorAll(".tabs a[data-a=stab]").forEach(a=>a.classList.toggle("on",a.dataset.id===ST));const c=S.clinic;
  if(ST==="team")$("#st").innerHTML=`<div class="card"><h2>Doctors &amp; staff</h2><div class="tbl"><table>${rows(S.users.map(u=>`<tr><td>${E(u.name)}<br><span class="mut">${E(u.email||u.username)}</span></td><td>${u.role}</td><td class="r">${u.id===ME.id?"":bt("rmu",u.id,"Remove","x")}</td></tr>`),"No users",3)}</table></div><div class="g" style="margin-top:12px">${fld("u-n","Username")}${fld("u-f","Full name")}${selv("u-r","Role",["staff","doctor"])}${fld("u-p","Temporary password (8+)","","password")}${fld("u-e","Email (optional, for password reset)","","email")}</div><div class="row"><button class="btn o" data-a="adu">Add user</button><span class="mut">Staff can register, book and bill, but cannot see diagnoses, prescriptions or settings.</span></div></div><div class="card"><h2>My password</h2><div class="g">${fld("pc-c","Current password","","password")}${fld("pc-n","New password (8+ characters)","","password")}</div><div class="row"><button class="btn o" data-a="pc">Change password</button></div></div>`;
  else if(ST==="ids")$("#st").innerHTML=`<div class="card"><h2>Patient number and bill</h2><div class="g">${fld("i-op","Patient number prefix",c.opPrefix,"text",'maxlength="8" placeholder="OP-"')}${fld("i-inv","Invoice number prefix",c.invPrefix,"text",'maxlength="8" placeholder="INV-"')}</div><p class="mut">Prefixes apply to new patients and invoices only. Existing numbers do not change. The default consultation fee, GSTIN and footer note are under Clinic Profile.</p><div class="row"><button class="btn" data-a="idsave">Save Changes</button></div></div>`;
@@ -688,7 +733,7 @@ async function spSubmit(btn,skip){if(SP.busy)return;$("#sp-msg").textContent="";
  const body={};PKEYS.forEach(k=>body[k]=spv(k));if(skip)SPK[3].forEach(k=>body[k]="");
  SP.busy=true;const h=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin"></span>Saving…';document.querySelectorAll(".sw-nav .btn").forEach(b=>b.disabled=true);
  try{const r=await api(SP.mode==="wiz"?"POST":"PUT",SP.mode==="wiz"?"/api/clinic/setup":"/api/clinic/profile",body);S.clinic=r.clinic;
-  if(SP.mode==="wiz"){ME.setup=true;SP.ready=false;history.replaceState(null,"","/#/");scrollTo(0,0);render();flash("Clinic setup complete. Welcome!");return}
+  if(SP.mode==="wiz"){ME.setup=true;SP.ready=false;history.replaceState(null,"","/#/");scrollTo(0,0);render();flash("Clinic setup complete. Welcome!");pwaAfterSignup();return}
   S.clinic=await api("PUT","/api/clinic",{...S.clinic,...LD});PV={};PKEYS.forEach(k=>PV[k]=String(S.clinic[k]??""));applyTheme();hdr();spPrev();sgPrev();flash("Profile and letterhead saved")}
  catch(e){const f=e.data&&e.data.fields;if(f){const ks=Object.keys(f);if(SP.mode==="wiz"){SP.step=+[1,2,3].find(n=>SPK[n].some(k=>ks.includes(k)))||1;spDraw()}ks.forEach(k=>spErr(k,f[k]));spFocus(ks[0])}
   const m=$("#sp-msg");if(m)m.textContent=e.message||"Could not save. Please try again."}

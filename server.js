@@ -103,6 +103,11 @@ app.get(["/","/setup-clinic"],A(async(q,s)=>{const u=await who(q),onSetup=q.path
  if(u&&!u.setup&&!onSetup)return s.redirect("/setup-clinic");if(onSetup&&(!u||u.setup))return s.redirect("/");
  s.set("Cache-Control","no-store").sendFile(APP)}));
 app.get(["/signup","/forgot","/reset"],(q,s)=>s.set("Cache-Control","no-store").sendFile(APP));
+/* installable app (PWA): manifest, icons and a service worker served from the root so it covers the whole site */
+app.get("/manifest.json",(q,s)=>s.type("application/manifest+json").set("Cache-Control","public, max-age=3600").sendFile(path.join(__dirname,"public/manifest.json")));
+app.get("/service-worker.js",(q,s)=>s.type("text/javascript").set({"Cache-Control":"no-cache","Service-Worker-Allowed":"/"}).sendFile(path.join(__dirname,"public/service-worker.js")));
+app.use("/icons",express.static(path.join(__dirname,"public/icons"),{maxAge:"7d",index:false,dotfiles:"ignore"}));
+app.get(["/favicon.ico","/apple-touch-icon.png","/apple-touch-icon-precomposed.png"],(q,s)=>s.set("Cache-Control","public, max-age=604800").sendFile(path.join(__dirname,"public/icons",q.path==="/favicon.ico"?"favicon-32.png":"apple-touch-icon.png")));
 app.get("/medpacks.js",(q,s)=>s.sendFile(path.join(__dirname,"public/medpacks.js")));
 app.get("/pricepacks.js",(q,s)=>s.sendFile(path.join(__dirname,"public/pricepacks.js")));
 app.get("/shared.js",(q,s)=>s.sendFile(path.join(__dirname,"public/shared.js")));
