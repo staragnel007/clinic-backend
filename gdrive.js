@@ -10,7 +10,7 @@ const crypto=require("crypto"),zlib=require("zlib");
 let _pdf,_xl;const PDFDocument=function(o){_pdf=_pdf||require("pdfkit");return new _pdf(o)},XL=()=>(_xl=_xl||require("exceljs"));
 
 module.exports=function(ctx){
-const {Q,one,all,clinic,audit,str,base,who,TZ,SH,GID,GSECRET,A}=ctx;
+const {Q,one,all,clinic,audit,str,base,who,TZ,SH,GID,GSECRET,A}=ctx,self=ctx.self||base;
 const KEYRAW=process.env.GDRIVE_TOKEN_KEY||"",KEY=KEYRAW.length>=32?crypto.createHash("sha256").update(KEYRAW).digest():null;
 const READY=!!(GID&&GSECRET&&KEY),KEEP=30,FOLDER="MyClinicDesk Backups",PREFIX="MyClinicDesk_Backup_",SCOPE="https://www.googleapis.com/auth/drive.file";
 if(!KEY)console.warn("GDRIVE_TOKEN_KEY is not set (or shorter than 32 characters): Google Drive backup is disabled.");
@@ -32,17 +32,17 @@ const fd=s=>{if(!s)return "";const [y,m,d]=String(s).slice(0,10).split("-");retu
 
 /* ---------- Google OAuth (connect) ---------- */
 const STATES=new Map();
-const redirect=q=>base(q)+"/auth/gdrive/callback";
+const redirect=q=>self(q)+"/auth/gdrive/callback";
 const back=(s,r)=>s.type("html").send(`<!DOCTYPE html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/?gdrive=${r}#/settings"><title>Google Drive</title><p style="font:16px system-ui;padding:24px">Returning to MyClinicDesk… <a href="/?gdrive=${r}#/settings">Continue</a></p>`);
 function authRoutes(app){
  app.get("/auth/gdrive",A(async(q,s)=>{const u=await who(q);if(!u||u.role!=="doctor")return s.redirect("/");if(!READY)return s.status(404).send("Google Drive backup is not set up on this server");
   if(!await allowed(u.cid))return s.redirect("/?gdrive=plan#/settings");
   for(const [k,v] of STATES)if(v.exp<Date.now())STATES.delete(k);
-  const st=crypto.randomBytes(24).toString("hex");STATES.set(st,{cid:u.cid,uid:u.id,exp:Date.now()+6e5});
-  s.redirect("https://accounts.google.com/o/oauth2/v2/auth?"+new URLSearchParams({client_id:GID,redirect_uri:redirect(q),response_type:"code",scope:"openid email "+SCOPE,state:st,access_type:"offline",prompt:"consent select_account",include_granted_scopes:"false",login_hint:u.email||""}))}));
+  const st=crypto.randomBytes(24).toString("hex");const ru=redirect(q);STATES.set(st,{cid:u.cid,uid:u.id,ru,exp:Date.now()+6e5});
+  s.redirect("https://accounts.google.com/o/oauth2/v2/auth?"+new URLSearchParams({client_id:GID,redirect_uri:ru,response_type:"code",scope:"openid email "+SCOPE,state:st,access_type:"offline",prompt:"consent select_account",include_granted_scopes:"false",login_hint:u.email||""}))}));
  app.get("/auth/gdrive/callback",A(async(q,s)=>{s.set("Cache-Control","no-store");const st=String(q.query.state||""),me=STATES.get(st);STATES.delete(st);
   if(!me||me.exp<Date.now())return back(s,"failed");if(q.query.error)return back(s,"denied");
-  const tr=await fetch("https://oauth2.googleapis.com/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({code:String(q.query.code||""),client_id:GID,client_secret:GSECRET,redirect_uri:redirect(q),grant_type:"authorization_code"})});
+  const tr=await fetch("https://oauth2.googleapis.com/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({code:String(q.query.code||""),client_id:GID,client_secret:GSECRET,redirect_uri:me.ru||redirect(q),grant_type:"authorization_code"})});
   const tk=await tr.json().catch(()=>({}));if(!tr.ok||!tk.access_token){console.error("Drive connect failed:",tk.error||tr.status);return back(s,"failed")}
   if(!String(tk.scope||"").split(" ").includes(SCOPE))return back(s,"scope");
   if(!tk.refresh_token){console.error("Drive connect: no refresh token");return back(s,"failed")}
