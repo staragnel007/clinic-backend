@@ -173,10 +173,15 @@ app.get("/d/:t",A(async(q,s)=>{s.set({"Cache-Control":"no-store","Referrer-Polic
 const sameStr=(a,b)=>crypto.timingSafeEqual(crypto.createHash("sha256").update(String(a)).digest(),crypto.createHash("sha256").update(String(b)).digest());
 const APP_URL=(process.env.APP_URL||"").replace(/\/+$/,""),GID=process.env.GOOGLE_CLIENT_ID||"",GSECRET=process.env.GOOGLE_CLIENT_SECRET||"";
 const RESEND=process.env.RESEND_API_KEY||"",MAIL_FROM=process.env.MAIL_FROM||"",APP_NAME=process.env.APP_NAME||"Clinic Desk";
-if(!APP_URL)console.warn("APP_URL is not set: Google sign-in and reset links will use the request's host.");
+if(!APP_URL)console.warn("APP_URL is not set: reset, report-upload and PDF links will use the request's host.");else console.log("APP_URL:",APP_URL,"(Google sign-in and Drive always return to the address the browser is using)");
 if(!GID||!GSECRET)console.warn("GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET not set: 'Continue with Google' is hidden.");
 if(!RESEND||!MAIL_FROM)console.warn("RESEND_API_KEY/MAIL_FROM not set: password reset emails cannot be sent.");
 const base=q=>APP_URL||(q.protocol+"://"+q.get("host"));
+/* the address the browser is really on. Google sign-in and Drive return here, so the login cookie (kept per site) is
+   always present and a wrong APP_URL (for example the marketing website) cannot send people to a 404 after Google. */
+const self=q=>{const h=String(q.get("host")||"").toLowerCase();if(!/^[a-z0-9.-]+(:\d+)?$/.test(h))return base(q);
+ const xp=String(q.get("x-forwarded-proto")||"").split(",")[0].trim().toLowerCase(),local=/^(localhost|127\.|\[?::1)/.test(h);
+ return (local?(xp||q.protocol):SECURE?"https":(xp||q.protocol))+"://"+h};
 const EMAIL=/^[^\s@<>"]{1,64}@[^\s@<>"]{1,190}\.[a-z]{2,24}$/i,mail=v=>{const e=str(v,254).toLowerCase();return EMAIL.test(e)?e:""};
 const cookie=q=>{const m=/(?:^|;\s*)sid=([a-f0-9]{64})/.exec(q.headers.cookie||"");return m&&m[1]};
 const login=async(s,id)=>{const t=crypto.randomBytes(32).toString("hex");await Q("INSERT INTO sessions(th,uid,exp) VALUES($1,$2,$3)",[sha(t),id,Date.now()+432e5]);s.append("Set-Cookie",`sid=${t}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200${SECURE?"; Secure":""}`)};
@@ -225,7 +230,7 @@ app.post("/api/reset",A(async(q,s)=>{const b=q.body||{},t=typeof b.token==="stri
  const u=await one("SELECT id,cid FROM users WHERE id=$1",[r.uid]);await login(s,u.id);await audit(u,"password_reset");s.json({ok:true})}));
 
 /* Google sign-in / sign-up (OpenID Connect, authorization-code flow) */
-const gRedirect=q=>base(q)+"/auth/google/callback";
+const gRedirect=q=>self(q)+"/auth/google/callback";
 app.get("/auth/google",(q,s)=>{if(!GID||!GSECRET)return s.status(404).send("Google sign-in is not set up");const st=crypto.randomBytes(24).toString("hex");
  s.append("Set-Cookie",`gst=${st}; HttpOnly; SameSite=Lax; Path=/auth; Max-Age=600${SECURE?"; Secure":""}`);
  s.redirect("https://accounts.google.com/o/oauth2/v2/auth?"+new URLSearchParams({client_id:GID,redirect_uri:gRedirect(q),response_type:"code",scope:"openid email profile",state:st,prompt:"select_account"}))});
@@ -246,7 +251,7 @@ app.get("/auth/google/callback",A(async(q,s)=>{const fail=m=>{console.error("Goo
  await login(s,u.id);await audit(u,"login_google");s.redirect("/")}));
 
 /* Google Drive backup (gdrive.js): connect, nightly zip of Patient Report PDFs + Excel records */
-const GD=require("./gdrive")({Q,one,all,clinic,audit,str,base,who,TZ,SH,GID,GSECRET,A});GD.authRoutes(app);
+const GD=require("./gdrive")({Q,one,all,clinic,audit,str,base,self,who,TZ,SH,GID,GSECRET,A});GD.authRoutes(app);
 
 /* founder / super admin (separate from doctor logins; needs ADMIN_PASSWORD) */
 const ADMIN_PW=process.env.ADMIN_PASSWORD||"",AKEY=crypto.createHash("sha256").update("opd-admin:"+ADMIN_PW).digest();
